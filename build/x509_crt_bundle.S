@@ -1,4 +1,4 @@
-/* * Data converted from F:/2.upwork/57.BreakerMater/Code/gateway/build/esp-idf/mbedtls/x509_crt_bundle
+/* * Data converted from D:/2.Work/upwork/45.BreakerMater/gateway/build/esp-idf/mbedtls/x509_crt_bundle
  */
 .data
 .section .rodata.embedded

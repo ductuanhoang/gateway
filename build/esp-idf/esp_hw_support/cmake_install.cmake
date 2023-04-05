@@ -1,4 +1,4 @@
-# Install script for directory: D:/ProjectWork/2.Esp32/esp-idf/components/esp_hw_support
+# Install script for directory: D:/2.Work/upwork/0.esp32/esp-idf/components/esp_hw_support
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -39,7 +39,7 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("F:/2.upwork/57.BreakerMater/Code/gateway/build/esp-idf/esp_hw_support/port/esp32/cmake_install.cmake")
+  include("D:/2.Work/upwork/45.BreakerMater/gateway/build/esp-idf/esp_hw_support/port/esp32/cmake_install.cmake")
 
 endif()
 

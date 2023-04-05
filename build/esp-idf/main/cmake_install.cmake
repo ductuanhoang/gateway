@@ -1,4 +1,4 @@
-# Install script for directory: F:/2.upwork/57.BreakerMater/Code/gateway/main
+# Install script for directory: D:/2.Work/upwork/45.BreakerMater/gateway/main
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

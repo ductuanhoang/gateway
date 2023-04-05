@@ -79,7 +79,7 @@ extern "C" void app_main(void)
     ESP_ERROR_CHECK(ret);
 
     // app init
-    app_init();
+    ble_main_init();
     jsonTest();
     // ESP_LOGI(TAG_MAIN, "message control: %s", output);
     app_init();

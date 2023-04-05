@@ -1,4 +1,4 @@
-# Install script for directory: D:/ProjectWork/2.Esp32/esp-idf/components/nghttp
+# Install script for directory: D:/2.Work/upwork/0.esp32/esp-idf/components/nghttp
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

@@ -1,13 +1,13 @@
 # Target labels
  bootloader
 # Source files and their labels
-F:/2.upwork/57.BreakerMater/Code/gateway/build/CMakeFiles/bootloader
-F:/2.upwork/57.BreakerMater/Code/gateway/build/CMakeFiles/bootloader.rule
-F:/2.upwork/57.BreakerMater/Code/gateway/build/CMakeFiles/bootloader-complete.rule
-F:/2.upwork/57.BreakerMater/Code/gateway/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
-F:/2.upwork/57.BreakerMater/Code/gateway/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
-F:/2.upwork/57.BreakerMater/Code/gateway/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
-F:/2.upwork/57.BreakerMater/Code/gateway/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
-F:/2.upwork/57.BreakerMater/Code/gateway/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
-F:/2.upwork/57.BreakerMater/Code/gateway/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
-F:/2.upwork/57.BreakerMater/Code/gateway/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule
+D:/2.Work/upwork/45.BreakerMater/gateway/build/CMakeFiles/bootloader
+D:/2.Work/upwork/45.BreakerMater/gateway/build/CMakeFiles/bootloader.rule
+D:/2.Work/upwork/45.BreakerMater/gateway/build/CMakeFiles/bootloader-complete.rule
+D:/2.Work/upwork/45.BreakerMater/gateway/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+D:/2.Work/upwork/45.BreakerMater/gateway/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+D:/2.Work/upwork/45.BreakerMater/gateway/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+D:/2.Work/upwork/45.BreakerMater/gateway/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+D:/2.Work/upwork/45.BreakerMater/gateway/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+D:/2.Work/upwork/45.BreakerMater/gateway/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+D:/2.Work/upwork/45.BreakerMater/gateway/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule

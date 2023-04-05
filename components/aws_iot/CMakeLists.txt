@@ -1,18 +1,18 @@
-set(pri_req  common bt) 
-file(GLOB_RECURSE SOURCES *.c)
+set(AWS_REQUIRES  common bt) 
 
-
-# Create a sources variable with a link to all cpp files to compile
-set(SOURCES
-    src/*.c
-)
 
 # Set the directories that should be included in the build command for this target
 # when running g++ these will be included as -I/directory/path/
-set(hello_headers
-    ${PROJECT_SOURCE_DIR}/include
+message(CMAKE_CURRENT_LIST_DIR="${CMAKE_CURRENT_LIST_DIR}")
+
+set (AWS_SOURCES  
+    ${CMAKE_CURRENT_LIST_DIR}/src
 )
 
-idf_component_register(SRCS ${SOURCES}
-                       INCLUDE_DIRS .
-                       REQUIRES ${pri_req})
+set(INCLUDE_AWS_DIRS
+    ${CMAKE_CURRENT_LIST_DIR}/include
+)
+
+idf_component_register(SRCS ${AWS_SOURCES}
+                    INCLUDE_DIRS ${INCLUDE_AWS_DIRS}
+                    REQUIRES ${AWS_REQUIRES})

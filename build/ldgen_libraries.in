@@ -73,3 +73,4 @@ $<TARGET_FILE:__idf_wifi_provisioning>
 $<TARGET_FILE:__idf_main>
 $<TARGET_FILE:__idf_common>
 $<TARGET_FILE:__idf_ble_service>
+$<TARGET_FILE:__idf_aws_iot>

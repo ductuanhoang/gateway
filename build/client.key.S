@@ -1,4 +1,4 @@
-/* * Data converted from F:/2.upwork/57.BreakerMater/Code/gateway/main/certs/client.key
+/* * Data converted from D:/2.Work/upwork/45.BreakerMater/gateway/main/certs/client.key
  * (null byte appended)
  */
 .data
