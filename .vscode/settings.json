@@ -13,6 +13,14 @@
         "xstring": "c",
         "xutility": "c",
         "xlocale": "c",
-        "xlocinfo": "c"
+        "xlocinfo": "c",
+        "ble_main.h": "c",
+        "stdint.h": "c",
+        "regex": "c",
+        "cstdio": "c",
+        "chrono": "c",
+        "xhash": "c",
+        "xtree": "c",
+        "button.h": "c"
     }
 }

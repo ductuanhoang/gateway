@@ -25,6 +25,7 @@
 #include "console/console.h"
 #include "services/gap/ble_svc_gap.h"
 #include "gatt_svr.h"
+#include "common.h"
 /***********************************************************************************************************************
  * Macro definitions
  ***********************************************************************************************************************/
@@ -33,26 +34,27 @@
  * Typedef definitions
  ***********************************************************************************************************************/
 #define BLE_MAIN_TAG "BLE_MAIN"
+#define BLE_MAIN_PREFIX "GW_"
 /***********************************************************************************************************************
  * Private global variables and functions
  ***********************************************************************************************************************/
 
 static void print_addr(const void *addr);
 
-static bool notify_state;
+static bool notify_wifi_scan_state;
+static bool notify_wifi_command_state;
 
 static uint16_t conn_handle;
 
-static const char *device_name = "BreakerMater";
+static char device_name[50];
 
 static int blehr_gap_event(struct ble_gap_event *event, void *arg);
 
 static uint8_t blehr_addr_type;
-static uint16_t uart_service_handle;
 
 /**
- * @brief 
- * 
+ * @brief
+ *
  */
 static void ble_device_on_sync(void);
 static void ble_device_on_reset(int reason);
@@ -80,8 +82,10 @@ void ble_main_init(void)
     rc = gatt_svr_init();
     assert(rc == 0);
 
+    memset(device_name, 0x00, sizeof(device_name));
+    sprintf(device_name, "%s%s", BLE_MAIN_PREFIX, device_info.device_name);
     /* Set the default device name */
-    rc = ble_svc_gap_device_name_set(device_name);
+    rc = ble_svc_gap_device_name_set((char *)device_name);
     assert(rc == 0);
 
     /* Start the task */
@@ -189,18 +193,21 @@ static int blehr_gap_event(struct ble_gap_event *event, void *arg)
         break;
 
     case BLE_GAP_EVENT_SUBSCRIBE:
-        MODLOG_DFLT(INFO, "subscribe event; cur_notify=%d\n value handle; "
-                          "val_handle=%d\n",
-                    event->subscribe.cur_notify, uart_service_handle);
-        if (event->subscribe.attr_handle == uart_service_handle)
+
+        ESP_LOGI("BLE_GAP", "event->subscribe.attr_handle = %d", event->subscribe.attr_handle);
+
+        if (event->subscribe.attr_handle == wifi_command_ctr_notify)
         {
-            notify_state = event->subscribe.cur_notify;
+            notify_wifi_scan_state = ! event->subscribe.cur_notify;
+            ESP_LOGI("BLE_GAP_SUBSCRIBE_EVENT", "notify_wifi_command_state =%d", notify_wifi_scan_state);
         }
-        else if (event->subscribe.attr_handle != uart_service_handle)
+        else if (event->subscribe.attr_handle == wifi_command_ressults_notify)
         {
-            notify_state = event->subscribe.cur_notify;
+            notify_wifi_command_state = ! event->subscribe.cur_notify;
+            ESP_LOGI("BLE_GAP_SUBSCRIBE_EVENT", "notify_wifi_scan_state =%d", notify_wifi_command_state);
         }
-        ESP_LOGI("BLE_GAP_SUBSCRIBE_EVENT", "conn_handle from subscribe=%d", conn_handle);
+
+
         break;
 
     case BLE_GAP_EVENT_MTU:
@@ -214,8 +221,8 @@ static int blehr_gap_event(struct ble_gap_event *event, void *arg)
 }
 
 /**
- * @brief 
- * 
+ * @brief
+ *
  */
 static void ble_device_on_sync(void)
 {
@@ -251,26 +258,50 @@ void blehr_host_task(void *param)
 
 /**
  * @brief report uart message
- * 
- * @param message 
- * @param lenght 
+ *
+ * @param message
+ * @param lenght
  */
-void gatt_report_notify(const char *message, uint16_t len)
+void gatt_report_reponse_command_notify(const char *message, uint16_t len)
 {
     ESP_LOGI(BLE_MAIN_TAG, "send report from uart port with len = %d", len);
     int rc;
     struct os_mbuf *om;
 
-    if (!notify_state)
+    if (!notify_wifi_command_state)
     {
         return;
     }
 
     om = ble_hs_mbuf_from_flat(message, len);
-    rc = ble_gattc_notify_custom(conn_handle, uart_service_handle, om);
+    rc = ble_gattc_notify_custom(conn_handle, wifi_command_ctr_notify, om);
 
     assert(rc == 0);
 }
+
+/**
+ * @brief report uart message
+ *
+ * @param message
+ * @param lenght
+ */
+void gatt_report_wifi_scan_notify(const char *message, uint16_t len)
+{
+    ESP_LOGI(BLE_MAIN_TAG, "send report from uart port with len = %d", len);
+    int rc;
+    struct os_mbuf *om;
+
+    if (!notify_wifi_scan_state)
+    {
+        return;
+    }
+
+    om = ble_hs_mbuf_from_flat(message, len);
+    rc = ble_gattc_notify_custom(conn_handle, wifi_command_ressults_notify, om);
+
+    assert(rc == 0);
+}
+
 /***********************************************************************************************************************
  * End of file
  ***********************************************************************************************************************/

@@ -29,80 +29,72 @@
 
 #define TAG "GAT "
 
+uint16_t wifi_command_ctr_notify = 0;
+uint16_t wifi_command_ressults_notify = 0;
+
 static const char *manuf_name = "ESP32ReadService";
 static const char *model_num = "123456";
 
 bool uart_active_handle = false;
 uint8_t gatt_svr_led_static_val = 0;
 
-static int gatt_svr_chr_rmc_read_notify(uint16_t conn_handle, uint16_t attr_handle,
-                                        struct ble_gatt_access_ctxt *ctxt, void *arg);
+static ble_command_callback_t ble_command_callback = NULL;
 
-static int gatt_svr_chr_ctr_led(uint16_t conn_handle, uint16_t attr_handle,
-                                struct ble_gatt_access_ctxt *ctxt, void *arg);
+static int gatt_svr_chr_wifi_read_notify(uint16_t conn_handle, uint16_t attr_handle,
+                                         struct ble_gatt_access_ctxt *ctxt, void *arg);
 
-static int gatt_svr_chr_serial_active(uint16_t conn_handle, uint16_t attr_handle,
-                                      struct ble_gatt_access_ctxt *ctxt, void *arg);
+static int gatt_svr_chr_wifi(uint16_t conn_handle, uint16_t attr_handle,
+                             struct ble_gatt_access_ctxt *ctxt, void *arg);
+
+static int gatt_svr_chr_wifi_read_notify(uint16_t conn_handle, uint16_t attr_handle,
+                                         struct ble_gatt_access_ctxt *ctxt, void *arg);
 
 static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
-    // NMEA_SERVICE
-    {/* Service: receive the UART message */
+    // DEVICE_INFO_SERVICE
+    {/* Service: device infor */
      .type = BLE_GATT_SVC_TYPE_PRIMARY,
-     .uuid = BLE_UUID16_DECLARE(NMEA_SERVICE),
+     .uuid = BLE_UUID16_DECLARE(DEVICE_INFO_SERVICE),
      .characteristics = (struct ble_gatt_chr_def[]){
          {
              /* Characteristic: Heart-rate measurement */
-             .uuid = BLE_UUID16_DECLARE(NMEA_RMC_CHAR),
-             .access_cb = gatt_svr_chr_rmc_read_notify,
-             //  .val_handle = &uart_service_handle,
-             .flags = BLE_GATT_CHR_F_NOTIFY | BLE_GATT_CHR_F_READ,
+             .uuid = BLE_UUID16_DECLARE(DEVICE_INFO_SYSTEM_ID_CHAR),
+             .access_cb = gatt_svr_chr_wifi_read_notify,
+             .flags = BLE_GATT_CHR_F_READ,
+         },
+         {
+             /* Characteristic: Heart-rate measurement */
+             .uuid = BLE_UUID16_DECLARE(DEVICE_INFO_FIRMWARE_VERSION_CHAR),
+             .access_cb = gatt_svr_chr_wifi_read_notify,
+             .flags = BLE_GATT_CHR_F_READ,
+         },
+         {
+             /* Characteristic: Heart-rate measurement */
+             .uuid = BLE_UUID16_DECLARE(DEVICE_INFO_HARDWARE_VERSION_CHAR),
+             .access_cb = gatt_svr_chr_wifi_read_notify,
+             .flags = BLE_GATT_CHR_F_READ,
          },
          {
              0, /* No more characteristics in this service */
          },
      }},
 
-    {/* Service: control led */
+    {/* Service: wifi service */
      .type = BLE_GATT_SVC_TYPE_PRIMARY,
-     .uuid = BLE_UUID16_DECLARE(LED_SERVICE),
+     .uuid = BLE_UUID16_DECLARE(WIFI_SERVICE),
      .characteristics = (struct ble_gatt_chr_def[]){
          {
              /* Characteristic: Heart-rate measurement */
-             .uuid = BLE_UUID16_DECLARE(LED_RED_CHAR),
-             .access_cb = gatt_svr_chr_ctr_led,
-             .flags = BLE_GATT_CHR_F_WRITE,
+             .uuid = BLE_UUID16_DECLARE(WIFI_RESPONSE_CHAR),
+             .access_cb = gatt_svr_chr_wifi,
+             .val_handle = &wifi_command_ctr_notify,
+             .flags = BLE_GATT_CHR_F_NOTIFY,
          },
          {
              /* Characteristic: Heart-rate measurement */
-             .uuid = BLE_UUID16_DECLARE(LED_YLW_CHAR),
-             .access_cb = gatt_svr_chr_ctr_led,
-             .flags = BLE_GATT_CHR_F_WRITE,
-         },
-         {
-             /* Characteristic: Heart-rate measurement */
-             .uuid = BLE_UUID16_DECLARE(LED_BLU_CHAR),
-             .access_cb = gatt_svr_chr_ctr_led,
-             .flags = BLE_GATT_CHR_F_WRITE,
-         },
-         {
-             /* Characteristic: Heart-rate measurement */
-             .uuid = BLE_UUID16_DECLARE(LED_WHT_CHAR),
-             .access_cb = gatt_svr_chr_ctr_led,
-             .flags = BLE_GATT_CHR_F_WRITE,
-         },
-         {
-             0, /* No more characteristics in this service */
-         },
-     }},
-    {/* Service: active */
-     .type = BLE_GATT_SVC_TYPE_PRIMARY,
-     .uuid = BLE_UUID16_DECLARE(SERIAL_SERVICE),
-     .characteristics = (struct ble_gatt_chr_def[]){
-         {
-             /* Characteristic: Heart-rate measurement */
-             .uuid = BLE_UUID16_DECLARE(SERIAL_ADCTIVE_CHAR),
-             .access_cb = gatt_svr_chr_ctr_led,
-             .flags = BLE_GATT_CHR_F_WRITE,
+             .uuid = BLE_UUID16_DECLARE(WIFI_COMMAND_CHAR),
+             .access_cb = gatt_svr_chr_wifi,
+             .val_handle = &wifi_command_ressults_notify,
+             .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
          },
          {
              0, /* No more characteristics in this service */
@@ -144,18 +136,30 @@ static int gatt_svr_chr_write(struct os_mbuf *om, uint16_t min_len, uint16_t max
  * @param arg
  * @return int
  */
-static int gatt_svr_chr_rmc_read_notify(uint16_t conn_handle, uint16_t attr_handle,
-                                        struct ble_gatt_access_ctxt *ctxt, void *arg)
+static int gatt_svr_chr_wifi_read_notify(uint16_t conn_handle, uint16_t attr_handle,
+                                         struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     uint16_t uuid;
     int rc = -1;
 
     uuid = ble_uuid_u16(ctxt->chr->uuid);
     printf("uuid = %x\n", uuid);
-    if (uuid == NMEA_RMC_CHAR)
+    if (uuid == DEVICE_INFO_SYSTEM_ID_CHAR)
     {
-        // rc = os_mbuf_append(ctxt->om, &uart_message_handle,
-        //                     strlen((const char*) uart_message_handle));
+        rc = os_mbuf_append(ctxt->om, &FIRMWARE_VERSION,
+                            strlen((const char *)FIRMWARE_VERSION));
+        return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+    else if (uuid == DEVICE_INFO_FIRMWARE_VERSION_CHAR)
+    {
+        rc = os_mbuf_append(ctxt->om, &FIRMWARE_VERSION,
+                            strlen((const char *)FIRMWARE_VERSION));
+        return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+    else if (uuid == DEVICE_INFO_HARDWARE_VERSION_CHAR)
+    {
+        rc = os_mbuf_append(ctxt->om, &HARDWARE_VERSION,
+                            strlen((const char *)HARDWARE_VERSION));
         return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
     }
 
@@ -171,83 +175,45 @@ static int gatt_svr_chr_rmc_read_notify(uint16_t conn_handle, uint16_t attr_hand
  * @param arg
  * @return int
  */
-static int gatt_svr_chr_ctr_led(uint16_t conn_handle, uint16_t attr_handle,
-                                struct ble_gatt_access_ctxt *ctxt, void *arg)
+static int gatt_svr_chr_wifi(uint16_t conn_handle, uint16_t attr_handle,
+                             struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     uint16_t uuid;
-    int rc;
+    int rc = -1;
 
     uuid = ble_uuid_u16(ctxt->chr->uuid);
     printf("uuid = %x\n", uuid);
-    if (uuid == LED_RED_CHAR)
+    uint8_t buffer[126];
+    memset(buffer, 0x00, sizeof(buffer));
+
+    if (uuid == WIFI_COMMAND_CHAR)
     {
-        // rc = gatt_svr_chr_write(ctxt->om, 0,
-        //                         sizeof leds_control.led_red,
-        //                         &leds_control.led_red, NULL);
-        // ESP_LOGI(TAG, "LED_RED_CHAR = %d\n", leds_control.led_red);
+        if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR)
+        {
+            ESP_LOGI(TAG, "WRITE WIFI_COMMAND_CHAR");
+            rc = gatt_svr_chr_write(ctxt->om, 0,
+                                    sizeof buffer,
+                                    &buffer, NULL);
+            if (ble_command_callback != NULL)
+                ble_command_callback(buffer);
+        }
+        else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR)
+        {
+            ESP_LOGI(TAG, "READ WIFI_COMMAND_CHAR");
+        }
         return rc;
     }
-    else if (uuid == LED_YLW_CHAR)
+    else if (uuid == WIFI_RESPONSE_CHAR)
     {
+        ESP_LOGI(TAG, "WIFI_RESPONSE_CHAR");
         // rc = gatt_svr_chr_write(ctxt->om, 0,
         //                         sizeof leds_control.led_ylw,
         //                         &leds_control.led_ylw, NULL);
         // ESP_LOGI(TAG, "LED_YLW_CHAR = %d\n", leds_control.led_ylw);
         return rc;
     }
-    else if (uuid == LED_BLU_CHAR)
-    {
-        // rc = gatt_svr_chr_write(ctxt->om, 0,
-        //                         sizeof leds_control.led_blu,
-        //                         &leds_control.led_blu, NULL);
-        // ESP_LOGI(TAG, "LED_BLU_CHAR = %d\n", leds_control.led_blu);
-        return rc;
-    }
-    else if (uuid == LED_WHT_CHAR)
-    {
-        // rc = gatt_svr_chr_write(ctxt->om, 0,
-        //                         sizeof leds_control.led_wht,
-        //                         &leds_control.led_wht, NULL);
-        // ESP_LOGI(TAG, "LED_WHT_CHAR = %d\n", leds_control.led_wht);
-        return rc;
-    }
-    else if (uuid == SERIAL_ADCTIVE_CHAR)
-    {
-        // rc = gatt_svr_chr_write(ctxt->om, 0,
-        //                         sizeof uart_active_receive,
-        //                         &uart_active_receive, NULL);
-        // ESP_LOGI(TAG, "SERIAL_ADCTIVE_CHAR = %d\n", uart_active_receive);
-        return rc;
-    }
 
     // assert(0);
-    return BLE_ATT_ERR_UNLIKELY;
-}
-
-/**
- * @brief characteristics control active or disable message UART
- *
- * @param conn_handle
- * @param attr_handle
- * @param ctxt
- * @param arg
- * @return int
- */
-static int gatt_svr_chr_serial_active(uint16_t conn_handle, uint16_t attr_handle,
-                                      struct ble_gatt_access_ctxt *ctxt, void *arg)
-{
-    uint16_t uuid;
-    int rc;
-
-    uuid = ble_uuid_u16(ctxt->chr->uuid);
-    printf("uuid = %x\n", uuid);
-    if (uuid == NMEA_RMC_CHAR)
-    {
-        // rc = os_mbuf_append(ctxt->om, &uart_message_handle,
-        //                     strlen((const char *)uart_message_handle));
-        return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
-    }
-
     return BLE_ATT_ERR_UNLIKELY;
 }
 
@@ -303,4 +269,17 @@ int gatt_svr_init(void)
     }
 
     return 0;
+}
+
+void ble_command_callback_init(ble_command_callback_t callback)
+{
+    if (callback)
+    {
+        ble_command_callback = callback;
+    }
+    else
+    {
+        ESP_LOGE(TAG, "uart_recieve_callback register error");
+        return;
+    }
 }

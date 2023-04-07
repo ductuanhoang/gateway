@@ -22,39 +22,41 @@
 
 #include "nimble/ble.h"
 #include "modlog/modlog.h"
+#include <stdio.h>
+#include <string.h>
+#define DEVICE_INFO_SERVICE 0x2A00
+#define DEVICE_INFO_SYSTEM_ID_CHAR 0x2A01
+#define DEVICE_INFO_FIRMWARE_VERSION_CHAR 0x2A02
+#define DEVICE_INFO_HARDWARE_VERSION_CHAR 0x2A03
+
+#define WIFI_SERVICE 0x1A00
+#define WIFI_RESPONSE_CHAR 0x1A01
+#define WIFI_COMMAND_CHAR 0x1A02
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
+    typedef void (*ble_command_callback_t)(uint8_t *);
 
+    extern uint16_t wifi_command_ctr_notify;
+    extern uint16_t wifi_command_ressults_notify;
+    
+    struct ble_hs_cfg;
+    struct ble_gatt_register_ctxt;
 
-#define NMEA_SERVICE    0x1000
-#define NMEA_RMC_CHAR   0x1001
+    void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
+    int gatt_svr_init(void);
 
-#define LED_SERVICE     0x2000
-#define LED_RED_CHAR    0x2001
-#define LED_YLW_CHAR    0x2002
-#define LED_BLU_CHAR    0x2003
-#define LED_WHT_CHAR    0x2004
+    /**
+     * @brief report uart message
+     *
+     * @param message
+     * @param lenght
+     */
+    void gatt_report_notify(const char *message, uint16_t len);
 
-#define SERIAL_SERVICE  0x3000
-#define SERIAL_ADCTIVE_CHAR 0x3001
-
-
-
-struct ble_hs_cfg;
-struct ble_gatt_register_ctxt;
-
-void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
-int gatt_svr_init(void);
-
-/**
- * @brief report uart message
- * 
- * @param message 
- * @param lenght 
- */
-void gatt_report_notify(const char *message, uint16_t len);
+    void ble_command_callback_init(ble_command_callback_t callback);
 
 #ifdef __cplusplus
 }

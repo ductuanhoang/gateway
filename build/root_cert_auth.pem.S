@@ -1,4 +1,4 @@
-/* * Data converted from D:/2.Work/upwork/45.BreakerMater/gateway/main/certs/root_cert_auth.pem
+/* * Data converted from F:/2.upwork/57.BreakerMater/Code/gateway/main/certs/root_cert_auth.pem
  * (null byte appended)
  */
 .data

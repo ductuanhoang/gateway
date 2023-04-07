@@ -6,15 +6,15 @@ set(pri_req  driver common bt)
 message(CMAKE_CURRENT_LIST_DIR="${CMAKE_CURRENT_LIST_DIR}")
 
 
+set(include_dirs "include")
+
+
 set (USER_BLE_SOURCES
-    ${CMAKE_CURRENT_LIST_DIR}/src
+    ${CMAKE_CURRENT_LIST_DIR}/src/ble_main.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/gatt_svr.c
 )
 
-set(USER_BLE_DIRS
-    ${CMAKE_CURRENT_LIST_DIR}/include
-)
 
-file(GLOB_RECURSE SOURCES *.c)
 idf_component_register(SRCS ${USER_BLE_SOURCES}
-                    INCLUDE_DIRS ${USER_BLE_DIRS}
+                    INCLUDE_DIRS "${include_dirs}"
                     REQUIRES ${pri_req})

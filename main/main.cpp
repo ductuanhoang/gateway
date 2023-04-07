@@ -34,8 +34,6 @@
 #include "common.h"
 #include "user_app.h"
 
-#include "ble_main.h"
-
 #define TAG_MAIN "MAIN"
 #include "ArduinoJson.h"
 #ifdef __cplusplus
@@ -67,20 +65,7 @@ void jsonTest(void)
 
 extern "C" void app_main(void)
 {
-    int rc;
 
-    /* Initialize NVS — it is used to store PHY calibration data */
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
-    {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        ret = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(ret);
-
-    // app init
-    ble_main_init();
-    jsonTest();
     // ESP_LOGI(TAG_MAIN, "message control: %s", output);
     app_init();
     // start uart service

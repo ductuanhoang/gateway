@@ -4,16 +4,16 @@
 cmake_minimum_required(VERSION 3.5)
 
 file(MAKE_DIRECTORY
-  "D:/2.Work/upwork/0.esp32/esp-idf/components/bootloader/subproject"
-  "D:/2.Work/upwork/45.BreakerMater/gateway/build/bootloader"
-  "D:/2.Work/upwork/45.BreakerMater/gateway/build/bootloader-prefix"
-  "D:/2.Work/upwork/45.BreakerMater/gateway/build/bootloader-prefix/tmp"
-  "D:/2.Work/upwork/45.BreakerMater/gateway/build/bootloader-prefix/src/bootloader-stamp"
-  "D:/2.Work/upwork/45.BreakerMater/gateway/build/bootloader-prefix/src"
-  "D:/2.Work/upwork/45.BreakerMater/gateway/build/bootloader-prefix/src/bootloader-stamp"
+  "D:/ProjectWork/2.Esp32/esp-idf/components/bootloader/subproject"
+  "F:/2.upwork/57.BreakerMater/Code/gateway/build/bootloader"
+  "F:/2.upwork/57.BreakerMater/Code/gateway/build/bootloader-prefix"
+  "F:/2.upwork/57.BreakerMater/Code/gateway/build/bootloader-prefix/tmp"
+  "F:/2.upwork/57.BreakerMater/Code/gateway/build/bootloader-prefix/src/bootloader-stamp"
+  "F:/2.upwork/57.BreakerMater/Code/gateway/build/bootloader-prefix/src"
+  "F:/2.upwork/57.BreakerMater/Code/gateway/build/bootloader-prefix/src/bootloader-stamp"
 )
 
 set(configSubDirs )
 foreach(subDir IN LISTS configSubDirs)
-    file(MAKE_DIRECTORY "D:/2.Work/upwork/45.BreakerMater/gateway/build/bootloader-prefix/src/bootloader-stamp/${subDir}")
+    file(MAKE_DIRECTORY "F:/2.upwork/57.BreakerMater/Code/gateway/build/bootloader-prefix/src/bootloader-stamp/${subDir}")
 endforeach()
