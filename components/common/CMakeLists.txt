@@ -12,6 +12,7 @@ set(include_dirs "include")
 
 set (USER_COMMON_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/common.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/Utils.cpp
 )
 
 

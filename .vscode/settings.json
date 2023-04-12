@@ -21,6 +21,11 @@
         "chrono": "c",
         "xhash": "c",
         "xtree": "c",
-        "button.h": "c"
+        "button.h": "c",
+        "utility": "cpp",
+        "map": "cpp",
+        "cstring": "cpp",
+        "iostream": "cpp",
+        "string": "cpp"
     }
 }

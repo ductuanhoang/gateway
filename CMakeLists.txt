@@ -12,6 +12,7 @@ set(EXTRA_COMPONENT_DIRS
     "components/system"
     "components/ble_service"
     "components/user_driver"
+    "components/user_task"
 )
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)

@@ -71,9 +71,10 @@ void user_sys_get_deviceName(char *devicename)
     uint8_t eth_mac[6];
 
     esp_efuse_mac_get_default(eth_mac);
-    snprintf(devicename, 20, "%02X%02X%02X%02X%02X%02X",
-             eth_mac[0], eth_mac[1], eth_mac[2],
-             eth_mac[3], eth_mac[4], eth_mac[5]);
+    // snprintf(devicename, 20, "%02X%02X%02X%02X%02X%02X",
+    //          eth_mac[0], eth_mac[1], eth_mac[2],
+    //          eth_mac[3], eth_mac[4], eth_mac[5]);
+    snprintf(devicename, 20, "%s", "12345");
 }
 /***********************************************************************************************************************
  * static functions

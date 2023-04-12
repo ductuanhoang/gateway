@@ -39,6 +39,7 @@
  * @param status
  */
 static void user_wifi_set_wifi_status(e_wifi_status status);
+static void user_wifi_task(void *param);
 
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
@@ -52,7 +53,7 @@ static esp_event_handler_instance_t instance_got_ip;
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
 
-static const char *TAG = "USER WIFI";
+static const char *WIFI_TAG = "USER WIFI";
 static int s_retry_num = 0;
 
 static wifi_config_t wifi_config = {
@@ -88,18 +89,18 @@ static void event_handler(void *arg, esp_event_base_t event_base,
         {
             esp_wifi_connect();
             s_retry_num++;
-            ESP_LOGI(TAG, "retry to connect to the AP");
+            ESP_LOGI(WIFI_TAG, "retry to connect to the AP");
         }
         else
         {
             xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
         }
-        ESP_LOGI(TAG, "connect to the AP fail");
+        ESP_LOGI(WIFI_TAG, "connect to the AP fail");
     }
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
     {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-        ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+        ESP_LOGI(WIFI_TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
@@ -142,20 +143,19 @@ void user_wifi_connect_AP(const char *ssid, const char *password)
                                                         &instance_got_ip));
     esp_err_t ret = esp_wifi_stop();
     if (ret != ESP_OK)
-        ESP_LOGE(TAG, "WiFi is not initialized by esp_wifi_init.");
+        ESP_LOGE(WIFI_TAG, "WiFi is not initialized by esp_wifi_init.");
 
     snprintf((char *)wifi_config.sta.ssid, sizeof(wifi_config.sta.ssid), "%s", ssid);
     snprintf((char *)wifi_config.sta.password, sizeof(wifi_config.sta.password), "%s", password);
 
-
-    ESP_LOGI(TAG, "wifi_config.sta.ssid = %s", wifi_config.sta.ssid);
-    ESP_LOGI(TAG, "wifi_config.sta.password = %s", wifi_config.sta.password);
+    ESP_LOGI(WIFI_TAG, "wifi_config.sta.ssid = %s", wifi_config.sta.ssid);
+    ESP_LOGI(WIFI_TAG, "wifi_config.sta.password = %s", wifi_config.sta.password);
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    ESP_LOGI(TAG, "wifi_init_sta finished.");
+    ESP_LOGI(WIFI_TAG, "wifi_init_sta finished.");
 
     /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
      * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
@@ -169,24 +169,25 @@ void user_wifi_connect_AP(const char *ssid, const char *password)
      * happened. */
     if (bits & WIFI_CONNECTED_BIT)
     {
-        ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
+        ESP_LOGI(WIFI_TAG, "connected to ap SSID:%s password:%s",
                  ssid, password);
         user_wifi_set_wifi_status(E_USER_WIFI_CONNECTED);
     }
     else if (bits & WIFI_FAIL_BIT)
     {
-        ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s",
+        ESP_LOGI(WIFI_TAG, "Failed to connect to SSID:%s, password:%s",
                  ssid, password);
         user_wifi_set_wifi_status(E_USER_WIFI_FAIL);
     }
     else
     {
-        ESP_LOGE(TAG, "UNEXPECTED EVENT");
+        ESP_LOGE(WIFI_TAG, "UNEXPECTED EVENT");
     }
 
+    xTaskCreate(user_wifi_task, "user_wifi_task", 1024 * 5, NULL, 5, NULL);
     /* The event will not be processed after unregister */
-    ESP_ERROR_CHECK(esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
-    ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
+    // ESP_ERROR_CHECK(esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
+    // ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
     vEventGroupDelete(s_wifi_event_group);
 }
 
@@ -208,4 +209,24 @@ e_wifi_status user_wifi_get_connected(void)
 static void user_wifi_set_wifi_status(e_wifi_status status)
 {
     user_wifi_status = status;
+}
+
+/**
+ *
+ */
+static void user_wifi_task(void *param)
+{
+    while (1)
+    {
+        if (user_wifi_status == E_USER_WIFI_CONNECTED)
+        {
+        }
+        else
+        {
+            ESP_LOGI(WIFI_TAG, "wifi reconnect task");
+            esp_wifi_connect();
+        }
+
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+    }
 }

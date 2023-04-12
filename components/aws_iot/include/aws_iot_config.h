@@ -8,7 +8,7 @@
 
 // These values are defined in the menuconfig of the AWS IoT component.
 // However, you can override these constants from your own code.
-#define AWS_IOT_MQTT_HOST   "aopb6i0d7z67k-ats.iot.eu-central-1.amazonaws.com" ///< Customer specific MQTT HOST. The same will be used for Thing Shadow
+#define AWS_IOT_MQTT_HOST   "a4bbrj5ng2men-ats.iot.us-east-1.amazonaws.com" ///< Customer specific MQTT HOST. The same will be used for Thing Shadow
 #define AWS_IOT_MQTT_PORT   8883 ///< default port for MQTT/S
 
 // These values are defaults and are used for ShadowConnectParametersDefault.

@@ -25,6 +25,7 @@
 #include "nvs_header.h"
 #include "aws_mqtt_provisioning.h"
 #include "button.h"
+#include "aws_task.h"
 /***********************************************************************************************************************
  * Macro definitions
  ***********************************************************************************************************************/
@@ -58,6 +59,7 @@ static void device_get_system_info(void);
 static bool user_get_wifi_info(void);
 static bool user_app_save_wifi_info(const char *ssid, const char *password);
 static void user_app_button_callback(int num, int event);
+static void test_task(void *param);
 /***********************************************************************************************************************
  * Exported global variables and functions (to be accessed by other files)
  ***********************************************************************************************************************/
@@ -94,21 +96,36 @@ void app_init(void)
     }
 
     // check aws provisioned
-    // if (mqtt_provision_task_start())
-    // {
-    //     ESP_LOGI(TAG_MAIN, "device has provisioned");
-    // }
-        // aws_task_init();
+    if (mqtt_provision_task_start())
+    {
+        ESP_LOGI(TAG_MAIN, "device has provisioned");
+        if (aws_iot_init() == 0)
+            ESP_LOGI(TAG_MAIN, "Connected to AWS...");
+    }
     // wifi_scan_report_callback_init(wifible_report_scanned); // set wifi scan callback
     // user_wifi_scan();
+    xTaskCreatePinnedToCore(&test_task, "test_task", 4096, nullptr, 5, nullptr, 1);
 }
 
-/**
- * @brief
- *
- */
-void wifi_task_init(void)
+static void event_mqtt_message(char *topicName, int payloadLen, char *payLoad)
 {
+    ESP_LOGI(TAG_MAIN, "event_mqtt_message");
+    ESP_LOGI(TAG_MAIN, "topicName = %s", topicName);
+    ESP_LOGI(TAG_MAIN, "payLoad = %s", payLoad);
+}
+
+static void test_task(void *param)
+{
+    aws_subscribe("/home_data/12345/DEV_/dn/ctr", event_mqtt_message);
+    while (1)
+    {
+        if (aws_isConnected())
+        {
+            ESP_LOGI(TAG_MAIN, "HUB report example");
+            aws_publish("/home_data/12345/DEV_/up/report", "test", 4);
+        }
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
+    }
 }
 
 /***********************************************************************************************************************
@@ -251,9 +268,9 @@ static bool user_app_save_wifi_info(const char *ssid, const char *password)
 
 /**
  * @brief event buttons
- * 
- * @param num 
- * @param event 
+ *
+ * @param num
+ * @param event
  */
 static void user_app_button_callback(int num, int event)
 {

@@ -112,7 +112,7 @@ int user_mqtt_init(user_mqtt_client_t *client,
         ret = esp_mqtt_client_start(user_mqtt_client.mqtt_client);
     }
 #endif
-    ESP_LOGE(TAG_MQTT, "indx2 mqtt subscribe count = %d", user_mqtt_sub_count);
+    ESP_LOGI(TAG_MQTT, "indx2 mqtt subscribe count = %d", user_mqtt_sub_count);
     return ret;
 }
 
@@ -156,7 +156,7 @@ int user_mqtt_client_subscribe(const char *subTopic, pMqttCallback_t pMqttCallba
 {
     int ret = -1;
     int indx = user_mqtt_sub_count;
-    ESP_LOGE(TAG_MQTT, "indx mqtt subscribe count = %d", user_mqtt_sub_count);
+    ESP_LOGI(TAG_MQTT, "indx mqtt subscribe count = %d", user_mqtt_sub_count);
     if (NULL == subTopic)
     {
         ESP_LOGE(TAG_MQTT, "mqtt subscribe data failed please check param again");

@@ -1,12 +1,12 @@
 /**
  * @file aws_mqtt_provisioning.h
  * @author your name (you@domain.com)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2023-01-26
- * 
+ *
  * @copyright Copyright (c) 2023
- * 
+ *
  */
 
 #ifndef __USER_MQTT_PROVISIONING_H__
@@ -77,10 +77,14 @@ extern "C"
     bool user_provision_get_certificate(void);
 
     extern char fleet_prov_certificate_Id[100];
+
+    extern char fleet_prov_cert_auth[2000];
     extern char fleet_prov_client_Cert[2000];
     extern char fleet_prov_client_Pkey[2000];
+
     extern char fleet_prov_cert_Owner[600];
     extern char fleet_prov_thing_Name[20];
+    
 #ifdef __cplusplus
 }
 #endif

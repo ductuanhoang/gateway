@@ -49,7 +49,7 @@ char fleet_prov_thing_Name[20];
 char fleet_prov_thing_pass[50];
 char fleet_prov_thing_type[50];
 
-e_provisioning_state provisioning_state = E_PROVISION_STATE_IDLE;
+static e_provisioning_state provisioning_state = E_PROVISION_STATE_IDLE;
 /***********************************************************************************************************************
  * Exported global variables
  ***********************************************************************************************************************/
@@ -367,11 +367,11 @@ static bool user_provision_save_cert(void)
     ret = Write_Blob(NAMESPACE_CONFIG, KEY_PEM_CERT, (uint8_t *)fleet_prov_client_Cert, strlen(fleet_prov_client_Cert));
     if (ret != ESP_OK)
         return false;
-
     ESP_LOGI("CONFIG", "Write dev cert at %s:%s", NAMESPACE_CONFIG, KEY_PEM_CERT);
+
     // ret = user_nvs_set_string(NVS_KEY_PRIVATE_KEY, fleet_prov_client_Pkey); // client private key
     ret = Write_Blob(NAMESPACE_CONFIG, KEY_PEM_KEY, (uint8_t *)fleet_prov_client_Pkey, strlen(fleet_prov_client_Pkey));
-    if (ret == false)
+    if (ret != ESP_OK)
         return false;
     ESP_LOGI("CONFIG", "Write dev cert at %s:%s", NAMESPACE_CONFIG, KEY_PEM_KEY);
 
@@ -472,15 +472,10 @@ static int user_mqtt_provision_register(void)
     if (buffer == NULL)
         return ret;
     memset(buffer, 0, 1024 + 1);
-    uint8_t eth_mac[6];
-    esp_efuse_mac_get_default(eth_mac);
-    snprintf(fleet_prov_thing_Name, sizeof(fleet_prov_thing_Name), "%02X:%02X:%02X:%02X:%02X:%02X",
-             eth_mac[0], eth_mac[1], eth_mac[2],
-             eth_mac[3], eth_mac[4], eth_mac[5]);
 
-    sprintf(buffer, "{\"certificateOwnershipToken\":\"%s\",\"parameters\":{\"SerialNumber\":\"%s\",\"deviceType\":\"%s\"}}",
+        sprintf(buffer, "{\"certificateOwnershipToken\":\"%s\",\"parameters\":{\"serialNumber\":\"%s\",\"deviceType\":\"%s\"}}",
             fleet_prov_cert_Owner,
-            fleet_prov_thing_Name,
+            device_info.device_name,
             DEVICE_MODEL);
 
     ESP_LOGI(TAG_PROVISION, "MQTT provisioning register: %s", buffer);

@@ -76,6 +76,6 @@ $<TARGET_FILE:__idf_user_wifi>
 $<TARGET_FILE:__idf_system>
 $<TARGET_FILE:__idf_ble_service>
 $<TARGET_FILE:__idf_user_driver>
-$<TARGET_FILE:__idf_aws_iot>
 $<TARGET_FILE:__idf_aws_provisioning>
+$<TARGET_FILE:__idf_aws_iot>
 $<TARGET_FILE:__idf_user_task>
