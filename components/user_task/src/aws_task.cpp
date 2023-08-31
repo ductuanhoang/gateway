@@ -9,6 +9,8 @@
 #include "ArduinoJson.h"
 #include "nvs_header.h"
 #include "common.h"
+#include "time.h"
+#include "user_wifi.h"
 static const char *AWS_IOT = "Aws-Iot";
 
 #define DELAY_AWS_TASK 15 * 1000
@@ -48,6 +50,13 @@ char receivedPayload[2048] = {0x00};
 
 int aws_iot_init(void)
 {
+    // wait wifi connected
+    while (!(user_wifi_get_connected() == E_USER_WIFI_CONNECTED))
+    {
+        ESP_LOGE(AWS_IOT, "wait wifi connecting ....");
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+    }
+
     aws_iot_load_cert();
     char clientID[20];
     user_sys_get_deviceName((char *)clientID);
@@ -86,34 +95,31 @@ int aws_iot_init(void)
     connectParams.isWillMsgPresent = false;
 
     ESP_LOGI(AWS_IOT, "Connecting to AWS...");
-    do
-    {
-        rc = aws_iot_mqtt_connect(&client, &connectParams);
-
-        if (SUCCESS != rc)
-        {
-            ESP_LOGE(AWS_IOT, "Error(%d) connecting to %s:%d, \n\rTrying to reconnect", rc, mqttInitParams.pHostURL, mqttInitParams.port);
-        }
-
-    } while (SUCCESS != rc);
-
-    /*
-     * Enable Auto Reconnect functionality. Minimum and Maximum time of Exponential backoff are set in aws_iot_config.h
-     *  #AWS_IOT_MQTT_MIN_RECONNECT_WAIT_INTERVAL
-     *  #AWS_IOT_MQTT_MAX_RECONNECT_WAIT_INTERVAL
-     */
-    // TODO - bock was commented out - check
+    connect_awsiot(&client);
+    ESP_LOGI(AWS_IOT, "%s:%d, heap: %d, %d", __func__, __LINE__, esp_get_free_heap_size(), esp_get_minimum_free_heap_size());
     rc = aws_iot_mqtt_autoreconnect_set_status(&client, true);
+
+    // /*
+    //  * Enable Auto Reconnect functionality. Minimum and Maximum time of Exponential backoff are set in aws_iot_config.h
+    //  *  #AWS_IOT_MQTT_MIN_RECONNECT_WAIT_INTERVAL
+    //  *  #AWS_IOT_MQTT_MAX_RECONNECT_WAIT_INTERVAL
+    //  */
+    // // TODO - bock was commented out - check
+    // rc = aws_iot_mqtt_autoreconnect_set_status(&client, true);
     if (SUCCESS != rc)
     {
-        ESP_LOGE(AWS_IOT, "Unable to set Auto Reconnect to true - %d", rc);
+        ESP_LOGE(AWS_IOT, "Unable to set Auto Reconnect to false - %d", rc);
         // abort();
     }
-    aws_iot_mqtt_autoreconnect_set_status(&client, false);
+    // aws_iot_mqtt_autoreconnect_set_status(&client, false);
     const size_t stack_size = 36 * 1024;
     if (rc == SUCCESS)
+    {
         xTaskCreatePinnedToCore(&aws_iot_task, "aws_iot_task", stack_size, nullptr, 5, nullptr, 1);
+        // xTaskCreatePinnedToCore(&shadowTask, "shadow_task", 5120, NULL, 5, NULL, 1);
+    }
     vTaskDelay(500 / portTICK_PERIOD_MS);
+    ESP_LOGI(AWS_IOT, "Connecting to AWS done ...");
     return rc;
 }
 
@@ -126,6 +132,8 @@ int aws_publish(const char *pubTopic, const char *pubPayLoad, int payLoadLen)
     paramsQOS0.isRetained = 0;
 
     paramsQOS0.payloadLen = payLoadLen;
+    ESP_LOGI(AWS_IOT, " pubTopic: %s", pubTopic);
+    ESP_LOGI(AWS_IOT, " pubPayLoad : %s", pubPayLoad);
     rc = aws_iot_mqtt_publish(&client, pubTopic, strlen(pubTopic), &paramsQOS0);
 
     return rc;
@@ -137,8 +145,10 @@ int aws_subscribe(const char *subTopic, pSubCallBackHandler_t pSubCallBackHandle
 
     subApplCallBackHandler = pSubCallBackHandler;
 
-    ESP_LOGI(AWS_IOT, "Subscribing...");
-    rc = aws_iot_mqtt_subscribe(&client, subTopic, strlen(subTopic), QOS1, iot_subscribe_callback_handler, nullptr);
+    ESP_LOGI(AWS_IOT, "Subscribing... %s", subTopic);
+    // rc = aws_iot_mqtt_subscribe(&client, subTopic, strlen(subTopic), QOS1, iot_subscribe_callback_handler, nullptr);
+    rc = aws_iot_mqtt_subscribe(&client, "$aws/things/44444/shadow/name/command/update/accepted", strlen("$aws/things/44444/shadow/name/command/update/accepted"), QOS1, iot_subscribe_callback_handler, nullptr);
+    
     if (SUCCESS != rc)
     {
         ESP_LOGE(AWS_IOT, "Error subscribing : %d ", rc);
@@ -273,7 +283,6 @@ void aws_iot_task(void *param)
     awsConnectionStatus = true;
     while (1)
     {
-        // ESP_LOGE(AWS_IOT, "Wifi Connected, processing AWS connection");
         if (!aws_isConnected())
         {
             ESP_LOGE(AWS_IOT, "Disconnected!!, Attempting reconnection...");
@@ -283,8 +292,18 @@ void aws_iot_task(void *param)
             connect_awsiot(&client);
             aws_iot_mqtt_resubscribe(&client);
         }
+        else
+        {
+            // Max time the yield function will wait for read messages
+            rc = aws_iot_mqtt_yield(&client, 10);
+            if ((NETWORK_ATTEMPTING_RECONNECT == rc) || (NETWORK_DISCONNECTED_ERROR == rc))
+            {
+                // If the client is attempting to reconnect we will skip the rest of the loop.
+                continue;
+            }
+        }
 
-        vTaskDelay(/*1000*/ 550 / portTICK_RATE_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }
 
@@ -297,7 +316,7 @@ static void connect_awsiot(AWS_IoT_Client *client)
         if (SUCCESS != rc)
         {
             ESP_LOGE(AWS_IOT, "Error(%d) connecting to %s:%d", rc, mqttInitParams.pHostURL, mqttInitParams.port);
-            vTaskDelay(10000 / portTICK_RATE_MS);
+            vTaskDelay(10000 / portTICK_PERIOD_MS);
         }
     } while (SUCCESS != rc);
 
@@ -308,6 +327,41 @@ static void connect_awsiot(AWS_IoT_Client *client)
         ESP_LOGE(AWS_IOT, "Unable to set Auto Reconnect to true - %d", rc);
     }
 }
+
+// void shadowTask(void *param)
+// {
+//     // initialise the shadow connection
+//     aws_iot_shadow_init(&mqttClient, shadowInitParams);
+
+//     // connect the shadow
+//     aws_iot_shadow_connect(&mqttClient, &shadowConnectParams);
+
+//     // register the delta callbacks
+//     aws_iot_shadow_register_delta(&mqttClient, &shadowParam1);
+//     aws_iot_shadow_register_delta(&mqttClient, &shadowParam2);
+//     aws_iot_shadow_register_delta(&mqttClient, &shadowParam3);
+
+//     while (networkConnected == true)
+//     {
+//         // wait for reporting period to elapse
+//         vTaskDelay(10000 / portTICK_PERIOD_MS);
+
+//         // yield to let MQTT receive message
+//         aws_iot_shadow_yield(&mqttClient, 250);
+
+//         // initialise the shadow document
+//         aws_iot_shadow_init_json_document(JsonDocumentBuffer, sizeOfJsonDocumentBuffer);
+
+//         // add the parameters to the shadow document
+//         aws_iot_shadow_add_reported(JsonDocumentBuffer, sizeOfJsonDocumentBuffer, 3, &shadowParam1, &shadowParam2, &shadowParam3);
+
+//         // finalise the shadow document
+//         aws_iot_finalize_json_document(JsonDocumentBuffer, sizeOfJsonDocumentBuffer);
+
+//         // update the shadow document
+//         aws_iot_shadow_update(&mqttClient, clientId, JsonDocumentBuffer, cbShadowUpdateStatus, NULL, 5, true);
+//     }
+// }
 /***********************************************************************************************************************
  * End of file
  ***********************************************************************************************************************/

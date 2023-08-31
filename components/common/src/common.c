@@ -62,9 +62,9 @@ void user_sys_get_mac(char *mac)
 }
 
 /**
- * @brief 
- * 
- * @param devicename 
+ * @brief
+ *
+ * @param devicename
  */
 void user_sys_get_deviceName(char *devicename)
 {
@@ -74,7 +74,26 @@ void user_sys_get_deviceName(char *devicename)
     // snprintf(devicename, 20, "%02X%02X%02X%02X%02X%02X",
     //          eth_mac[0], eth_mac[1], eth_mac[2],
     //          eth_mac[3], eth_mac[4], eth_mac[5]);
-    snprintf(devicename, 20, "%s", "12345");
+    snprintf(devicename, 20, "%s", "44444");
+}
+
+/**
+ * @brief add a device to the list of devices
+ * 
+ * @param device_address 
+ */
+uint8_t user_check_and_add_sub_device(uint16_t device_address)
+{
+    for (int i = 0; i < gateway_data.element_indx + 1; i++)
+    {
+        if (gateway_data.element_table_address[i] == device_address)
+            return 0;
+    }
+
+    // add new sub device
+    gateway_data.element_indx++;
+    gateway_data.element_table_address[gateway_data.element_indx] = device_address;
+    return 1;
 }
 /***********************************************************************************************************************
  * static functions

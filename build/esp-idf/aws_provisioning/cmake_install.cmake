@@ -1,4 +1,4 @@
-# Install script for directory: F:/2.upwork/57.BreakerMater/Code/gateway/components/aws_provisioning
+# Install script for directory: D:/2.upwork/57.BreakerMater/Code/gateway/components/aws_provisioning
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

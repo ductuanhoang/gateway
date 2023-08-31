@@ -20,6 +20,8 @@
 #ifndef H_COMMON_
 #define H_COMMON_
 
+
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -37,6 +39,7 @@ extern "C" {
 #define USER_WIFI_SSID_MAX_LENGTH   64
 #define USER_WIFI_PASS_MAX_LENGTH   64
 
+#define USER_MAX_SUPPORT_ELEMENTS   20
 typedef struct 
 {
     uint8_t ssid[USER_WIFI_SSID_MAX_LENGTH];
@@ -52,10 +55,56 @@ typedef struct
     wifi_info_t wifi;
 }device_info_t;
 
+typedef struct
+{
+    int id;
+    char id_name[20];
+    uint8_t id_command;
+    bool status;
+    double voltage;
+    double current;
+    double power;
+    bool source_power_1;
+    bool source_power_2;
+} EndDeviceData_t;
+
+typedef struct
+{
+    union common
+    {
+        /* data */
+        uint8_t status:1;
+        uint8_t reserved:7;
+        
+    };
+    uint16_t data;
+    
+} Encode_EndDeviceData_t;
+
+typedef struct
+{
+    char HubId[20]; 
+    uint8_t event_message;
+    uint8_t element_table_address[USER_MAX_SUPPORT_ELEMENTS];
+    uint8_t element_indx;
+} GateWayData_t;
+
 extern device_info_t device_info;
+extern EndDeviceData_t end_device_data;
+extern GateWayData_t gateway_data;
+extern GateWayData_t old_gateway_data;
+
+
 void user_sys_restart(void);
 void user_sys_get_mac(char *mac);
 void user_sys_get_deviceName(char *devicename);
+
+/**
+ * @brief add a device to the list of devices
+ * 
+ * @param device_address 
+ */
+uint8_t user_check_and_add_sub_device(uint16_t device_address);
 
 #ifdef __cplusplus
 }

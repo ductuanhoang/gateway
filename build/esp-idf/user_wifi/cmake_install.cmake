@@ -1,4 +1,4 @@
-# Install script for directory: F:/2.upwork/57.BreakerMater/Code/gateway/components/user_wifi
+# Install script for directory: D:/2.upwork/57.BreakerMater/Code/gateway/components/user_wifi
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

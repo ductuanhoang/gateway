@@ -1232,7 +1232,7 @@
                     {
                         "children": [],
                         "depends_on": "SECURE_TARGET_HAS_SECURE_ROM_DL_MODE && <choice SECURE_UART_ROM_DL_MODE>",
-                        "help": "If set, during startup the app will burn an eFuse bit to permanently switch the UART ROM\nDownload Mode into a separate Secure Download mode. This option can only work if\nDownload Mode is not already disabled by eFuse.\n\nSecure Download mode limits the use of Download Mode functions to simple flash read,\nwrite and erase operations, plus a command to return a summary of currently enabled\nsecurity features.\n\nSecure Download mode is not compatible with the esptool.py flasher stub feature,\nespefuse.py, read/writing memory or registers, encrypted download, or any other\nfeatures that interact with unsupported Download Mode commands.\n\nSecure Download mode should be enabled in any application where Flash Encryption\nand/or Secure Boot is enabled. Disabling this option does not immediately cancel\nthe benefits of the security features, but it increases the potential \"attack\nsurface\" for an attacker to try and bypass them with a successful physical attack.\n\nIt is also possible to enable secure download mode at runtime by calling\nesp_efuse_enable_rom_secure_download_mode()\n\nNote: Secure Download mode is not available for ESP32 (includes revisions till ECO3).",
+                        "help": "If set, during startup the app will burn an eFuse bit to permanently switch the UART ROM\nDownload Mode into a separate Secure Download mode. This option can only work if\nDownload Mode is not already disabled by eFuse.\n\nSecure Download mode limits the use of Download Mode functions to update SPI config,\nchanging baud rate, basic flash write and a command to return a summary of currently\nenabled security features (`get_security_info`).\n\nSecure Download mode is not compatible with the esptool.py flasher stub feature,\nespefuse.py, read/writing memory or registers, encrypted download, or any other\nfeatures that interact with unsupported Download Mode commands.\n\nSecure Download mode should be enabled in any application where Flash Encryption\nand/or Secure Boot is enabled. Disabling this option does not immediately cancel\nthe benefits of the security features, but it increases the potential \"attack\nsurface\" for an attacker to try and bypass them with a successful physical attack.\n\nIt is also possible to enable secure download mode at runtime by calling\nesp_efuse_enable_rom_secure_download_mode()\n\nNote: Secure Download mode is not available for ESP32 (includes revisions till ECO3).",
                         "id": "SECURE_ENABLE_SECURE_ROM_DL_MODE",
                         "name": "SECURE_ENABLE_SECURE_ROM_DL_MODE",
                         "range": null,
@@ -3428,7 +3428,10 @@
                                                         "help": "Maximum number of adv packets which can be recorded in duplicate scan cache for BLE Mesh.\nWhen the maximum amount of device in the filter is reached, the cache will be refreshed.",
                                                         "id": "BTDM_MESH_DUPL_SCAN_CACHE_SIZE",
                                                         "name": "BTDM_MESH_DUPL_SCAN_CACHE_SIZE",
-                                                        "range": null,
+                                                        "range": [
+                                                            10,
+                                                            1000
+                                                        ],
                                                         "title": "Maximum number of Mesh adv packets in scan duplicate filter",
                                                         "type": "int"
                                                     }
@@ -3837,8 +3840,24 @@
                                                 "help": "Maximum GATT Server Profiles Count",
                                                 "id": "BT_GATT_MAX_SR_PROFILES",
                                                 "name": "BT_GATT_MAX_SR_PROFILES",
-                                                "range": null,
+                                                "range": [
+                                                    1,
+                                                    32
+                                                ],
                                                 "title": "Max GATT Server Profiles",
+                                                "type": "int"
+                                            },
+                                            {
+                                                "children": [],
+                                                "depends_on": "BT_GATTS_ENABLE && BT_BLUEDROID_ENABLED && BT_BLUEDROID_ENABLED",
+                                                "help": "Maximum GATT Service Attributes Count",
+                                                "id": "BT_GATT_MAX_SR_ATTRIBUTES",
+                                                "name": "BT_GATT_MAX_SR_ATTRIBUTES",
+                                                "range": [
+                                                    1,
+                                                    500
+                                                ],
+                                                "title": "Max GATT Service Attributes",
                                                 "type": "int"
                                             },
                                             {
@@ -3895,6 +3914,19 @@
                                             {
                                                 "children": [],
                                                 "depends_on": "BT_GATTC_ENABLE && BT_BLUEDROID_ENABLED",
+                                                "help": "Maximum GATTC cache characteristic count",
+                                                "id": "BT_GATTC_MAX_CACHE_CHAR",
+                                                "name": "BT_GATTC_MAX_CACHE_CHAR",
+                                                "range": [
+                                                    1,
+                                                    500
+                                                ],
+                                                "title": "Max gattc cache characteristic for discover",
+                                                "type": "int"
+                                            },
+                                            {
+                                                "children": [],
+                                                "depends_on": "BT_GATTC_ENABLE && BT_BLUEDROID_ENABLED",
                                                 "help": "This select can save gattc cache data to nvs flash",
                                                 "id": "BT_GATTC_CACHE_NVS_FLASH",
                                                 "name": "BT_GATTC_CACHE_NVS_FLASH",
@@ -3908,7 +3940,10 @@
                                                 "help": "The number of attempts to reconnect if the connection establishment failed",
                                                 "id": "BT_GATTC_CONNECT_RETRY_COUNT",
                                                 "name": "BT_GATTC_CONNECT_RETRY_COUNT",
-                                                "range": null,
+                                                "range": [
+                                                    0,
+                                                    7
+                                                ],
                                                 "title": "The number of attempts to reconnect if the connection establishment failed",
                                                 "type": "int"
                                             }
@@ -5862,11 +5897,14 @@
                             {
                                 "children": [],
                                 "depends_on": "BT_BLUEDROID_ENABLED && BT_BLUEDROID_ENABLED",
-                                "help": "Maximum BT/BLE connection count",
+                                "help": "Maximum BT/BLE connection count. The ESP32-C3/S3 chip supports a maximum of 10 instances,\nincluding ADV, SCAN and connections. The ESP32-C3/S3 chip can connect up to 9 devices if\nADV or SCAN uses only one. If ADV and SCAN are both used, The ESP32-C3/S3 chip is connected\nto a maximum of 8 devices. Because Bluetooth cannot reclaim used instances once ADV or SCAN\nis used.",
                                 "id": "BT_ACL_CONNECTIONS",
                                 "name": "BT_ACL_CONNECTIONS",
-                                "range": null,
-                                "title": "BT/BLE MAX ACL CONNECTIONS(1~7)",
+                                "range": [
+                                    1,
+                                    9
+                                ],
+                                "title": "BT/BLE MAX ACL CONNECTIONS(1~9)",
                                 "type": "int"
                             },
                             {
@@ -5921,7 +5959,7 @@
                             },
                             {
                                 "children": [],
-                                "depends_on": "BT_BLUEDROID_ENABLED && (BTDM_CTRL_MODE_BTDM || BTDM_CTRL_MODE_BLE_ONLY) && BT_BLUEDROID_ENABLED",
+                                "depends_on": "BT_BLUEDROID_ENABLED && BT_BLE_ENABLED && BT_BLUEDROID_ENABLED",
                                 "help": "Originally, when doing BLE active scan, Bluedroid will not report adv to application layer\nuntil receive scan response. This option is used to disable the behavior. When enable this option,\nBluedroid will report adv data or scan response to application layer immediately.\n\n# Memory reserved at start of DRAM for Bluetooth stack",
                                 "id": "BT_BLE_ACT_SCAN_REP_ADV_SCAN",
                                 "name": "BT_BLE_ACT_SCAN_REP_ADV_SCAN",
@@ -5935,7 +5973,10 @@
                                 "help": "Bluetooth Connection establishment maximum time, if connection time exceeds this value, the connection\nestablishment fails, ESP_GATTC_OPEN_EVT or ESP_GATTS_OPEN_EVT is triggered.",
                                 "id": "BT_BLE_ESTAB_LINK_CONN_TOUT",
                                 "name": "BT_BLE_ESTAB_LINK_CONN_TOUT",
-                                "range": null,
+                                "range": [
+                                    1,
+                                    60
+                                ],
                                 "title": "Timeout of BLE connection establishment",
                                 "type": "int"
                             },
@@ -5945,7 +5986,10 @@
                                 "help": "Bluetooth Device name length shall be no larger than 248 octets, If the broadcast data cannot contain\nthe complete device name, then only the shortname will be displayed, the rest parts that can't fit in\nwill be truncated.",
                                 "id": "BT_MAX_DEVICE_NAME_LEN",
                                 "name": "BT_MAX_DEVICE_NAME_LEN",
-                                "range": null,
+                                "range": [
+                                    32,
+                                    248
+                                ],
                                 "title": "length of bluetooth device name",
                                 "type": "int"
                             },
@@ -6113,10 +6157,7 @@
                                 "help": "Defines maximum number of concurrent BLE connections. For ESP32, user\nis expected to configure BTDM_CTRL_BLE_MAX_CONN from controller menu\nalong with this option. Similarly for ESP32-C3 or ESP32-S3, user is expected to\nconfigure BT_CTRL_BLE_MAX_ACT from controller menu.",
                                 "id": "BT_NIMBLE_MAX_CONNECTIONS",
                                 "name": "BT_NIMBLE_MAX_CONNECTIONS",
-                                "range": [
-                                    1,
-                                    9
-                                ],
+                                "range": null,
                                 "title": "Maximum number of concurrent connections",
                                 "type": "int"
                             },
@@ -6146,10 +6187,7 @@
                                 "help": "Defines maximum number of BLE Connection Oriented Channels. When set to (0), BLE COC is not compiled in",
                                 "id": "BT_NIMBLE_L2CAP_COC_MAX_NUM",
                                 "name": "BT_NIMBLE_L2CAP_COC_MAX_NUM",
-                                "range": [
-                                    0,
-                                    9
-                                ],
+                                "range": null,
                                 "title": "Maximum number of connection oriented channels",
                                 "type": "int"
                             },
@@ -6440,10 +6478,7 @@
                                 "help": "Time interval between RPA address change. This is applicable in case of\nHost based RPA",
                                 "id": "BT_NIMBLE_RPA_TIMEOUT",
                                 "name": "BT_NIMBLE_RPA_TIMEOUT",
-                                "range": [
-                                    1,
-                                    41400
-                                ],
+                                "range": null,
                                 "title": "RPA timeout in seconds",
                                 "type": "int"
                             },
@@ -6895,7 +6930,10 @@
                                 "help": "This option specifies how many unprovisioned devices can be added to device\nqueue for provisioning. Users can use this option to define the size of the\nqueue in the bottom layer which is used to store unprovisioned device\ninformation (e.g. Device UUID, address).",
                                 "id": "BLE_MESH_WAIT_FOR_PROV_MAX_DEV_NUM",
                                 "name": "BLE_MESH_WAIT_FOR_PROV_MAX_DEV_NUM",
-                                "range": null,
+                                "range": [
+                                    1,
+                                    100
+                                ],
                                 "title": "Maximum number of unprovisioned devices that can be added to device queue",
                                 "type": "int"
                             },
@@ -6905,7 +6943,10 @@
                                 "help": "This option specifies how many devices can be provisioned by a Provisioner.\nThis value indicates the maximum number of unprovisioned devices which can be\nprovisioned by a Provisioner. For instance, if the value is 6, it means the\nProvisioner can provision up to 6 unprovisioned devices.\nTheoretically a Provisioner without the limitation of its memory can provision\nup to 32766 unprovisioned devices, here we limit the maximum number to 100\njust to limit the memory used by a Provisioner. The bigger the value is, the\nmore memory it will cost by a Provisioner to store the information of nodes.",
                                 "id": "BLE_MESH_MAX_PROV_NODES",
                                 "name": "BLE_MESH_MAX_PROV_NODES",
-                                "range": null,
+                                "range": [
+                                    1,
+                                    1000
+                                ],
                                 "title": "Maximum number of devices that can be provisioned by Provisioner",
                                 "type": "int"
                             },
@@ -6915,7 +6956,10 @@
                                 "help": "This option specifies how many devices can be provisioned at the same time\nusing PB-ADV. For examples, if the value is 2, it means a Provisioner can\nprovision two unprovisioned devices with PB-ADV at the same time.",
                                 "id": "BLE_MESH_PBA_SAME_TIME",
                                 "name": "BLE_MESH_PBA_SAME_TIME",
-                                "range": null,
+                                "range": [
+                                    1,
+                                    10
+                                ],
                                 "title": "Maximum number of PB-ADV running at the same time by Provisioner",
                                 "type": "int"
                             },
@@ -6925,7 +6969,10 @@
                                 "help": "This option specifies how many devices can be provisioned at the same\ntime using PB-GATT. For example, if the value is 2, it means a Provisioner\ncan provision two unprovisioned devices with PB-GATT at the same time.",
                                 "id": "BLE_MESH_PBG_SAME_TIME",
                                 "name": "BLE_MESH_PBG_SAME_TIME",
-                                "range": null,
+                                "range": [
+                                    1,
+                                    5
+                                ],
                                 "title": "Maximum number of PB-GATT running at the same time by Provisioner",
                                 "type": "int"
                             },
@@ -6935,7 +6982,10 @@
                                 "help": "This option specifies how many subnets per network a Provisioner can create.\nIndeed, this value decides the number of network keys which can be added by a Provisioner.",
                                 "id": "BLE_MESH_PROVISIONER_SUBNET_COUNT",
                                 "name": "BLE_MESH_PROVISIONER_SUBNET_COUNT",
-                                "range": null,
+                                "range": [
+                                    1,
+                                    4096
+                                ],
                                 "title": "Maximum number of mesh subnets that can be created by Provisioner",
                                 "type": "int"
                             },
@@ -6945,7 +6995,10 @@
                                 "help": "This option specifies how many application keys the Provisioner can have.\nIndeed, this value decides the number of the application keys which can be added by a Provisioner.",
                                 "id": "BLE_MESH_PROVISIONER_APP_KEY_COUNT",
                                 "name": "BLE_MESH_PROVISIONER_APP_KEY_COUNT",
-                                "range": null,
+                                "range": [
+                                    1,
+                                    4096
+                                ],
                                 "title": "Maximum number of application keys that can be owned by Provisioner",
                                 "type": "int"
                             },
@@ -6957,7 +7010,10 @@
                                         "help": "This option specifies how many heartbeat filter entries Provisioner supports.\nThe heartbeat filter (acceptlist or rejectlist) entries are used to store a\nlist of SRC and DST which can be used to decide if a heartbeat message will\nbe processed and notified to the application layer by Provisioner.\nNote: The filter is an empty rejectlist by default.",
                                         "id": "BLE_MESH_PROVISIONER_RECV_HB_FILTER_SIZE",
                                         "name": "BLE_MESH_PROVISIONER_RECV_HB_FILTER_SIZE",
-                                        "range": null,
+                                        "range": [
+                                            1,
+                                            1000
+                                        ],
                                         "title": "Maximum number of filter entries for receiving Heartbeat messages",
                                         "type": "int"
                                     }
@@ -7180,7 +7236,10 @@
                         "help": "This option specifies how many subnets a Mesh network can have at the same time.\nIndeed, this value decides the number of the network keys which can be owned by a node.",
                         "id": "BLE_MESH_SUBNET_COUNT",
                         "name": "BLE_MESH_SUBNET_COUNT",
-                        "range": null,
+                        "range": [
+                            1,
+                            4096
+                        ],
                         "title": "Maximum number of mesh subnets per network",
                         "type": "int"
                     },
@@ -7190,7 +7249,10 @@
                         "help": "This option specifies how many application keys the device can store per network.\nIndeed, this value decides the number of the application keys which can be owned by a node.",
                         "id": "BLE_MESH_APP_KEY_COUNT",
                         "name": "BLE_MESH_APP_KEY_COUNT",
-                        "range": null,
+                        "range": [
+                            1,
+                            4096
+                        ],
                         "title": "Maximum number of application keys per network",
                         "type": "int"
                     },
@@ -7200,7 +7262,10 @@
                         "help": "This option specifies the maximum number of application keys to which each model\ncan be bound.",
                         "id": "BLE_MESH_MODEL_KEY_COUNT",
                         "name": "BLE_MESH_MODEL_KEY_COUNT",
-                        "range": null,
+                        "range": [
+                            1,
+                            4096
+                        ],
                         "title": "Maximum number of application keys per model",
                         "type": "int"
                     },
@@ -7210,7 +7275,10 @@
                         "help": "This option specifies the maximum number of addresses to which each model can\nbe subscribed.",
                         "id": "BLE_MESH_MODEL_GROUP_COUNT",
                         "name": "BLE_MESH_MODEL_GROUP_COUNT",
-                        "range": null,
+                        "range": [
+                            1,
+                            4096
+                        ],
                         "title": "Maximum number of group address subscriptions per model",
                         "type": "int"
                     },
@@ -7220,7 +7288,10 @@
                         "help": "This option specifies how many Label UUIDs can be stored.\nIndeed, this value decides the number of the Virtual Addresses can be supported by a node.",
                         "id": "BLE_MESH_LABEL_COUNT",
                         "name": "BLE_MESH_LABEL_COUNT",
-                        "range": null,
+                        "range": [
+                            0,
+                            4096
+                        ],
                         "title": "Maximum number of Label UUIDs used for Virtual Addresses",
                         "type": "int"
                     },
@@ -7230,7 +7301,10 @@
                         "help": "This option specifies the maximum capacity of the replay protection list.\nIt is similar to Network message cache size, but has a different purpose.\nThe replay protection list is used to prevent a node from replay attack,\nwhich will store the source address and sequence number of the received\nmesh messages.\nFor Provisioner, the replay protection list size should not be smaller than\nthe maximum number of nodes whose information can be stored. And the element\nnumber of each node should also be taken into consideration. For example, if\nProvisioner can provision up to 20 nodes and each node contains two elements,\nthen the replay protection list size of Provisioner should be at least 40.",
                         "id": "BLE_MESH_CRPL",
                         "name": "BLE_MESH_CRPL",
-                        "range": null,
+                        "range": [
+                            2,
+                            65535
+                        ],
                         "title": "Maximum capacity of the replay protection list",
                         "type": "int"
                     },
@@ -7240,7 +7314,10 @@
                         "help": "Number of messages that are cached for the network. This helps prevent\nunnecessary decryption operations and unnecessary relays. This option\nis similar to Replay protection list, but has a different purpose.\nA node is not required to cache the entire Network PDU and may cache\nonly part of it for tracking, such as values for SRC/SEQ or others.",
                         "id": "BLE_MESH_MSG_CACHE_SIZE",
                         "name": "BLE_MESH_MSG_CACHE_SIZE",
-                        "range": null,
+                        "range": [
+                            2,
+                            65535
+                        ],
                         "title": "Network message cache size",
                         "type": "int"
                     },
@@ -7250,7 +7327,10 @@
                         "help": "Number of advertising buffers available. The transport layer reserves\nADV_BUF_COUNT - 3 buffers for outgoing segments. The maximum outgoing\nSDU size is 12 times this value (out of which 4 or 8 bytes are used\nfor the Transport Layer MIC). For example, 5 segments means the maximum\nSDU size is 60 bytes, which leaves 56 bytes for application layer data\nusing a 4-byte MIC, or 52 bytes using an 8-byte MIC.",
                         "id": "BLE_MESH_ADV_BUF_COUNT",
                         "name": "BLE_MESH_ADV_BUF_COUNT",
-                        "range": null,
+                        "range": [
+                            6,
+                            256
+                        ],
                         "title": "Number of advertising buffers",
                         "type": "int"
                     },
@@ -7260,9 +7340,22 @@
                         "help": "When the IV Update state enters Normal operation or IV Update\nin Progress, we need to keep track of how many hours has passed\nin the state, since the specification requires us to remain in\nthe state at least for 96 hours (Update in Progress has an\nadditional upper limit of 144 hours).\n\nIn order to fulfill the above requirement, even if the node might\nbe powered off once in a while, we need to store persistently\nhow many hours the node has been in the state. This doesn't\nnecessarily need to happen every hour (thanks to the flexible\nduration range). The exact cadence will depend a lot on the\nways that the node will be used and what kind of power source it\nhas.\n\nSince there is no single optimal answer, this configuration\noption allows specifying a divider, i.e. how many intervals\nthe 96 hour minimum gets split into. After each interval the\nduration that the node has been in the current state gets\nstored to flash. E.g. the default value of 4 means that the\nstate is saved every 24 hours (96 / 4).",
                         "id": "BLE_MESH_IVU_DIVIDER",
                         "name": "BLE_MESH_IVU_DIVIDER",
-                        "range": null,
+                        "range": [
+                            2,
+                            96
+                        ],
                         "title": "Divider for IV Update state refresh timer",
                         "type": "int"
+                    },
+                    {
+                        "children": [],
+                        "depends_on": "BLE_MESH",
+                        "help": "According to Section 3.10.5 of Mesh Specification v1.0.1.\nIf a node in Normal Operation receives a Secure Network beacon with an IV index\nequal to the last known IV index+1 and the IV Update Flag set to 0, the node may\nupdate its IV without going to the IV Update in Progress state, or it may initiate\nan IV Index Recovery procedure (Section 3.10.6), or it may ignore the Secure\nNetwork beacon. The node makes the choice depending on the time since last IV\nupdate and the likelihood that the node has missed the Secure Network beacons\nwith the IV update Flag.\nWhen the above situation is encountered, this option can be used to decide whether\nto perform the IV index recovery procedure.",
+                        "id": "BLE_MESH_IVU_RECOVERY_IVI",
+                        "name": "BLE_MESH_IVU_RECOVERY_IVI",
+                        "range": null,
+                        "title": "Recovery the IV index when the latest whole IV update procedure is missed",
+                        "type": "bool"
                     },
                     {
                         "children": [],
@@ -7270,7 +7363,10 @@
                         "help": "Maximum number of simultaneous outgoing multi-segment and/or reliable messages.\nThe default value is 1, which means the device can only send one segmented\nmessage at a time. And if another segmented message is going to be sent, it\nshould wait for the completion of the previous one.\nIf users are going to send multiple segmented messages at the same time, this\nvalue should be configured properly.",
                         "id": "BLE_MESH_TX_SEG_MSG_COUNT",
                         "name": "BLE_MESH_TX_SEG_MSG_COUNT",
-                        "range": null,
+                        "range": [
+                            1,
+                            60
+                        ],
                         "title": "Maximum number of simultaneous outgoing segmented messages",
                         "type": "int"
                     },
@@ -7280,7 +7376,10 @@
                         "help": "Maximum number of simultaneous incoming multi-segment and/or reliable messages.\nThe default value is 1, which means the device can only receive one segmented\nmessage at a time. And if another segmented message is going to be received,\nit should wait for the completion of the previous one.\nIf users are going to receive multiple segmented messages at the same time, this\nvalue should be configured properly.",
                         "id": "BLE_MESH_RX_SEG_MSG_COUNT",
                         "name": "BLE_MESH_RX_SEG_MSG_COUNT",
-                        "range": null,
+                        "range": [
+                            1,
+                            255
+                        ],
                         "title": "Maximum number of simultaneous incoming segmented messages",
                         "type": "int"
                     },
@@ -7290,7 +7389,10 @@
                         "help": "Maximum incoming Upper Transport Access PDU length. Leave this to the default\nvalue, unless you really need to optimize memory usage.",
                         "id": "BLE_MESH_RX_SDU_MAX",
                         "name": "BLE_MESH_RX_SDU_MAX",
-                        "range": null,
+                        "range": [
+                            36,
+                            384
+                        ],
                         "title": "Maximum incoming Upper Transport Access PDU length",
                         "type": "int"
                     },
@@ -7300,7 +7402,10 @@
                         "help": "Maximum number of segments supported for outgoing messages.\nThis value should typically be fine-tuned based on what\nmodels the local node supports, i.e. what's the largest\nmessage payload that the node needs to be able to send.\nThis value affects memory and call stack consumption, which\nis why the default is lower than the maximum that the\nspecification would allow (32 segments).\n\nThe maximum outgoing SDU size is 12 times this number (out of\nwhich 4 or 8 bytes is used for the Transport Layer MIC). For\nexample, 5 segments means the maximum SDU size is 60 bytes,\nwhich leaves 56 bytes for application layer data using a\n4-byte MIC and 52 bytes using an 8-byte MIC.\n\nBe sure to specify a sufficient number of advertising buffers\nwhen setting this option to a higher value. There must be at\nleast three more advertising buffers (BLE_MESH_ADV_BUF_COUNT)\nas there are outgoing segments.",
                         "id": "BLE_MESH_TX_SEG_MAX",
                         "name": "BLE_MESH_TX_SEG_MAX",
-                        "range": null,
+                        "range": [
+                            2,
+                            32
+                        ],
                         "title": "Maximum number of segments in outgoing messages",
                         "type": "int"
                     },
@@ -7731,7 +7836,10 @@
                         "help": "Timeout value used by the node to get response of the acknowledged\nmessage which is sent by the client model.\nThis value indicates the maximum time that a client model waits for\nthe response of the sent acknowledged messages. If a client model\nuses 0 as the timeout value when sending acknowledged messages, then\nthe default value will be used which is four seconds.",
                         "id": "BLE_MESH_CLIENT_MSG_TIMEOUT",
                         "name": "BLE_MESH_CLIENT_MSG_TIMEOUT",
-                        "range": null,
+                        "range": [
+                            100,
+                            1200000
+                        ],
                         "title": "Timeout(ms) for client message response",
                         "type": "int"
                     },
@@ -12489,6 +12597,19 @@
                         "range": null,
                         "title": "Wifi sleep optimize when beacon lost",
                         "type": "bool"
+                    },
+                    {
+                        "children": [],
+                        "depends_on": null,
+                        "help": "Maximum number of encrypted peers supported by espnow.\nThe number of hardware keys for encryption is fixed. And the espnow and SoftAP share the same\nhardware keys. So this configuration will affect the maximum connection number of SoftAP.\nMaximum espnow encrypted peers number + maximum number of connections of SoftAP = Max hardware keys number.\n\nWhen using ESP mesh, this value should be set to a maximum of 6.",
+                        "id": "ESP_WIFI_ESPNOW_MAX_ENCRYPT_NUM",
+                        "name": "ESP_WIFI_ESPNOW_MAX_ENCRYPT_NUM",
+                        "range": [
+                            0,
+                            17
+                        ],
+                        "title": "Maximum espnow encrypt peers number",
+                        "type": "int"
                     }
                 ],
                 "depends_on": null,
@@ -13421,63 +13542,11 @@
                     {
                         "children": [],
                         "depends_on": null,
-                        "help": "Modbus slave Timer group number that is used for timeout measurement.",
-                        "id": "FMB_TIMER_GROUP",
-                        "name": "FMB_TIMER_GROUP",
-                        "range": [
-                            0,
-                            1
-                        ],
-                        "title": "Slave Timer group number",
-                        "type": "int"
-                    },
-                    {
-                        "children": [],
-                        "depends_on": null,
-                        "help": "Modbus slave Timer Index in the group that is used for timeout measurement.",
-                        "id": "FMB_TIMER_INDEX",
-                        "name": "FMB_TIMER_INDEX",
-                        "range": [
-                            0,
-                            1
-                        ],
-                        "title": "Slave Timer index in the group",
-                        "type": "int"
-                    },
-                    {
-                        "children": [],
-                        "depends_on": null,
-                        "help": "Modbus master Timer group number that is used for timeout measurement.",
-                        "id": "FMB_MASTER_TIMER_GROUP",
-                        "name": "FMB_MASTER_TIMER_GROUP",
-                        "range": [
-                            0,
-                            1
-                        ],
-                        "title": "Master Timer group number",
-                        "type": "int"
-                    },
-                    {
-                        "children": [],
-                        "depends_on": null,
-                        "help": "Modbus master Timer Index in the group that is used for timeout measurement.\nNote: Modbus master and slave should have different timer index to be able to work simultaneously.",
-                        "id": "FMB_MASTER_TIMER_INDEX",
-                        "name": "FMB_MASTER_TIMER_INDEX",
-                        "range": [
-                            0,
-                            1
-                        ],
-                        "title": "Master Timer index",
-                        "type": "int"
-                    },
-                    {
-                        "children": [],
-                        "depends_on": null,
-                        "help": "This option places Modbus timer IRQ handler into IRAM.\nThis allows to avoid delays related to processing of non-IRAM-safe interrupts\nduring a flash write operation (NVS updating a value, or some other\nflash API which has to perform an read/write operation and disable CPU cache).\nThis option has dependency with the UART_ISR_IN_IRAM option which places UART interrupt\nhandler into IRAM to prevent delays related to processing of UART events.",
-                        "id": "FMB_TIMER_ISR_IN_IRAM",
-                        "name": "FMB_TIMER_ISR_IN_IRAM",
+                        "help": "If this option is set the Modbus stack uses ISR dispatch method\nto send timeout events from the callback function called from ISR.\nThis option has dependency with the UART_ISR_IN_IRAM option which places UART interrupt\nhandler into IRAM to prevent delays related to processing of UART events.",
+                        "id": "FMB_TIMER_USE_ISR_DISPATCH_METHOD",
+                        "name": "FMB_TIMER_USE_ISR_DISPATCH_METHOD",
                         "range": null,
-                        "title": "Place timer interrupt handler into IRAM",
+                        "title": "Modbus timer uses ISR dispatch method",
                         "type": "bool"
                     }
                 ],
@@ -15111,11 +15180,21 @@
                             {
                                 "children": [],
                                 "depends_on": null,
-                                "help": "Set maximum segment lifetime in in milliseconds.",
+                                "help": "Set maximum segment lifetime in milliseconds.",
                                 "id": "LWIP_TCP_MSL",
                                 "name": "LWIP_TCP_MSL",
                                 "range": null,
                                 "title": "Maximum segment lifetime (MSL)",
+                                "type": "int"
+                            },
+                            {
+                                "children": [],
+                                "depends_on": null,
+                                "help": "Set maximum segment lifetime in milliseconds.",
+                                "id": "LWIP_TCP_FIN_WAIT_TIMEOUT",
+                                "name": "LWIP_TCP_FIN_WAIT_TIMEOUT",
+                                "range": null,
+                                "title": "Maximum FIN segment lifetime",
                                 "type": "int"
                             },
                             {
@@ -18578,6 +18657,16 @@
                         "name": "SPI_FLASH_ENABLE_ENCRYPTED_READ_WRITE",
                         "range": null,
                         "title": "Enable encrypted partition read/write operations",
+                        "type": "bool"
+                    },
+                    {
+                        "children": [],
+                        "depends_on": null,
+                        "help": "This option is invisible, and will be selected automatically\nwhen ``ESPTOOLPY_FLASHFREQ_120M`` is selected.",
+                        "id": "SPI_FLASH_HPM_ENABLE",
+                        "name": "SPI_FLASH_HPM_ENABLE",
+                        "range": null,
+                        "title": null,
                         "type": "bool"
                     }
                 ],

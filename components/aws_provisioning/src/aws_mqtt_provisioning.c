@@ -231,7 +231,7 @@ static void mqtt_provisioning_task(void *pvParameters)
 
     esp_wifi_get_mode(&wifi_mode);
     // wait wifi connected
-    while (!(wifi_mode == WIFI_MODE_STA && user_wifi_get_connected() == E_USER_WIFI_CONNECTED))
+    while (!(wifi_mode == WIFI_MODE_STA && (user_wifi_get_connected() == E_USER_WIFI_CONNECTED)))
     {
         ESP_LOGE(TAG_PROVISION, "wait wifi connecting ....");
         vTaskDelay(2000 / portTICK_PERIOD_MS);
@@ -473,7 +473,7 @@ static int user_mqtt_provision_register(void)
         return ret;
     memset(buffer, 0, 1024 + 1);
 
-        sprintf(buffer, "{\"certificateOwnershipToken\":\"%s\",\"parameters\":{\"serialNumber\":\"%s\",\"deviceType\":\"%s\"}}",
+    sprintf(buffer, "{\"certificateOwnershipToken\":\"%s\",\"parameters\":{\"serialNumber\":\"%s\",\"deviceType\":\"%s\"}}",
             fleet_prov_cert_Owner,
             device_info.device_name,
             DEVICE_MODEL);

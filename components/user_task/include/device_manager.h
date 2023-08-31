@@ -17,159 +17,82 @@
  * under the License.
  */
 
-#ifndef H_DEVICE_MANAGER_
-#define H_DEVICE_MANAGER_
-#include <stdint.h>
-#include <stdbool.h>
-#include <iostream>
+#pragma once
+#undef max
+#undef min
+
+// #include "aws_iot_error.h"
+#include "common.h"
+#include "ArduinoJson.h"
 #include <cstring>
-#include <map>
-#include "aws_iot_error.h"
-using namespace std;
-
-class JsonMessage
+#include <string.h>
+#include <string>
+#include <vector>
+#define JSON_MAX_STRING_LENGTH 500
+class DeviceManager
 {
-private:
-    /* data */
 public:
-    enum Service
-    {
-        HOME_DATA = 0,
-        PROVISIONING,
-        UNKNOWN,
-        SERVICE_MAX_NUM
-    };
-
-    enum Action
-    {
-        GET = 0,
-        POST,
-        DELETE,
-        REPORT,
-        SYNC,
-        EXEC,
-        ACT_UNKNOWN,
-        ACTION_MAX_NUM
-    };
-
     enum MsgType
     {
-        DEVICE = 0,
-        HOME,
-        ENV,
-        RULE,
-        SENCE,
-        SCHEDULE,
-        VERSION,
-        MSG_TYPE_UNKNOWN,
-        MSG_TYPE_MAX_NUM
+        STATE = 0,
+        REPORTED,
+        DESIRED,
+        DELTA
     };
 
-    enum DataLink
+    enum DataType
     {
-        UPLINK = 0,
-        DOWNLINK,
-        DATA_LINK_UNKNOWN,
-        DATA_LINK_MAX_NUM
+        ID = 0,
+        VOLTAGE,
+        CURRENT,
+        POWER,
+        STATUS,
+        SOURCE,
+        PRIMARY,
+        SECONDARY
     };
 
-    enum TransType
+    enum DataDevice
     {
-        REQUEST = 0,
-        RESPONSE,
-        TRANS_TYPE_UNKNOWN
+        BREAKERMATE = 0,
+        HUB_ID
     };
 
-JsonMessage(
-        const string& reqID,
-        Service service,
-        Action action, 
-        MsgType msgType, 
-        DataLink rootDatalink, 
-        TransType rootTransType);
-
-    JsonMessage(
-        char *message,
-        const string& reqID = string(),
-        Service service = Service::UNKNOWN,
-        Action action = Action::ACT_UNKNOWN, 
-        MsgType msgType = MsgType::MSG_TYPE_UNKNOWN, 
-        DataLink rootDatalink = DataLink::DATA_LINK_UNKNOWN, 
-        TransType rootTransType = TransType::TRANS_TYPE_UNKNOWN);
-
-    JsonMessage(
-        Service service = Service::UNKNOWN,
-        Action action = Action::ACT_UNKNOWN, 
-        MsgType msgType = MsgType::MSG_TYPE_UNKNOWN);
-
-    ~JsonMessage();
-    JsonMessage(const JsonMessage& cp);
-
-    JsonMessage& operator= (const JsonMessage& copied);
-    bool operator== (const JsonMessage& rhs) const;
-
-
-    void ClearAll();
-    static void SetPrefixTopic(string);
-
-    string GetReqID();
-    string GetService();
-    string GetAction();
-    string GetRootDataLink();
-    string GetRootTransType();
-    string GetFullMessage();
-    string GetDataContent();
-
-    string GetReqTopic();
-    string GetResTopic();
-    string GetAckTopic();
-    string CreateTopic(Service, Action, DataLink, TransType);
-
-    void SetReqID(string reqID);
-    void SetConfig(Service, Action, MsgType);
-    void SetDataContent(string data);
-    void SetMessage(string message);
-
-
-public:
-    static map<Service, const char*> GetServiceStringID;
-    static map<Action, const char*> GetActionStringID;
-    static map<MsgType, const char*> GetMsgTypeStringID;
-    static map<DataLink, const char*> GetDataLinkStringID;
-    static map<TransType, const char*> GetTransStringID;
-
-    static map<string, Service> GetServiceIntID;
-    static map<string, Action> GetActionIntID;
-    static map<string, MsgType> GetMsgTypeIntID;
-    static map<string, DataLink> GetDataLinkIntID;
-    static map<string, TransType> GetTransIntID;
+    enum Controltype
+    {
+        CONTROL,
+        SCAN
+    };
 
 private:
-    Service m_service;
-    Action m_action;
-    MsgType m_msgType;
-    DataLink m_rootDatalink;
-    TransType m_rootTransType;
-    
-    string m_reqID;
-    string m_dataContent;
-    string m_message;
+    std::string m_version;
+    std::string m_Hub_Id;
+    std::string m_message;
+    std::vector<std::string> m_dataContent;
+    std::vector<std::string> m_ScanNodeContent;
+    EndDeviceData_t m_gateway_data;
 
-    bool m_isDataAvailable;
+public:
+    DeviceManager(const std::string &Hub_id);
+    ~DeviceManager();
 
-protected:
-    void Swap(JsonMessage& other);
+    void setDeviceId(const std::string &ID);
+    std::string getDeviceId(void);
+    void deviceReportDataPoint(std::string DP, EndDeviceData_t data);
+    std::string deviceReportAllDataPoints(void);
+
+    std::string deviceReportScanResult(void);
+    void deviceReportScanDataPoint(std::string id_node);
+
+    EndDeviceData_t devivePasserMessage(std::string messge_read);
+    EndDeviceData_t devicePasserMessage_02(std::string message);
+
+    std::string deviceReportTopic(std::string Hub_id);
+    std::string deviceSubTopic(std::string Hub_id);
+    void setDataContent(std::string data);
+    void setScanNodeDataContent(std::string data);
+    void freeDataContent(void);
+    void freeScanContent(void);
+    void setGateWayData(EndDeviceData_t data);
+    void clearGateWayData(void);
 };
-
-
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // H_DEVICE_MANAGER_

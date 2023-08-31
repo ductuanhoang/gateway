@@ -25,6 +25,10 @@
 extern "C"
 {
 #endif
+    typedef enum
+    {
+        E_USER_BUTTON_HOLD
+    } e_user_button;
 
     typedef void (*button_callback_t)(int, int);
 
@@ -32,11 +36,7 @@ extern "C"
 
     void user_button_callback_init(button_callback_t callback);
 
-    typedef enum
-    {
-        E_USER_BUTTON_HOLD
-    } e_user_button;
-
+    void user_control_relay(uint8_t state);
 #ifdef __cplusplus
 }
 #endif

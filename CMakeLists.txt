@@ -10,9 +10,13 @@ set(EXTRA_COMPONENT_DIRS
     "components/common"
     "components/user_wifi"
     "components/system"
-    "components/ble_service"
+    # "components/ble_service"
     "components/user_driver"
     "components/user_task"
+    "components/sntp_time"
+    "components/ble_mesh"
+    "components/ble_gatts"
+    "components/emonLib"
 )
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
