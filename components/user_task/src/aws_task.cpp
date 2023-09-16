@@ -286,11 +286,11 @@ void aws_iot_task(void *param)
         if (!aws_isConnected())
         {
             ESP_LOGE(AWS_IOT, "Disconnected!!, Attempting reconnection...");
-            aws_iot_mqtt_disconnect(&client);
-            ESP_LOGE(AWS_IOT, "Connecting");
+            // aws_iot_mqtt_disconnect(&client);
+            // ESP_LOGE(AWS_IOT, "Connecting");
 
             connect_awsiot(&client);
-            aws_iot_mqtt_resubscribe(&client);
+            // aws_iot_mqtt_resubscribe(&client);
         }
         else
         {
@@ -307,6 +307,7 @@ void aws_iot_task(void *param)
     }
 }
 
+uint8_t aws_iot_counting_down = 0;
 static void connect_awsiot(AWS_IoT_Client *client)
 {
     IoT_Error_t rc = FAILURE;
@@ -315,6 +316,9 @@ static void connect_awsiot(AWS_IoT_Client *client)
         rc = aws_iot_mqtt_connect(client, &connectParams);
         if (SUCCESS != rc)
         {
+            aws_iot_counting_down++;
+            if(aws_iot_counting_down == 5)
+                esp_restart();
             ESP_LOGE(AWS_IOT, "Error(%d) connecting to %s:%d", rc, mqttInitParams.pHostURL, mqttInitParams.port);
             vTaskDelay(10000 / portTICK_PERIOD_MS);
         }

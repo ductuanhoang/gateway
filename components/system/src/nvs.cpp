@@ -13,6 +13,21 @@ void nvs_init(void)
         err = nvs_flash_init();
     }
     ESP_ERROR_CHECK(err);
+
+    err = nvs_flash_init_partition("user_ble");
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    {
+        ESP_ERROR_CHECK(nvs_flash_erase_partition("user_ble"));
+        err = nvs_flash_init_partition("user_ble");
+    }
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Error (%s) nvs_flash_erase_partition handle!\n", esp_err_to_name(err));
+    }
+    else
+    {
+        ESP_LOGI(TAG, "nvs_flash_erase_partition done");
+    }
 }
 
 /********************************************************************
@@ -242,4 +257,91 @@ void Erase_Flash(void)
     erase_key(NAMESPACE_EPC, KEY_SENSOR_SETTINGS);
     erase_key(PAIR_NS, PAIR_KEY);
     erase_key(NAMESPACE_WIFI_CRED, WIFI_SSID_KEY);
+}
+
+//----------------------------------------------------------------
+/**
+ * configure storage user ble parameters
+ *
+ */
+//----------------------------------------------------------------
+
+/**
+ * @brief 
+ * 
+ * @param name 
+ * @param key 
+ * @param Out_String 
+ * @param length 
+ * @return int 
+ */
+int nvs_read_node_config_name(const char *name, const char *key, char *Out_String, size_t *length)
+{
+    nvs_handle_t my_handle;
+    esp_err_t err = nvs_open_from_partition("user_ble", name, NVS_READWRITE, &my_handle);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+    }
+    else
+    {
+        err = nvs_get_str(my_handle, key, NULL, length);
+        if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND)
+            return ESP_ERR_NVS_NOT_FOUND;
+        if (length == 0)
+        {
+            ESP_LOGE(TAG, "%s:%s Nothing saved yet!\n", name, key);
+        }
+        else
+        {
+            err = nvs_get_str(my_handle, key, Out_String, length);
+            switch (err)
+            {
+            case ESP_OK:
+                break;
+            case ESP_ERR_NVS_NOT_FOUND:
+                ESP_LOGE(TAG, "%s:%s not initialized yet!\n", name, key);
+                break;
+            default:
+                ESP_LOGE(TAG, "Error (%s) reading!\n", esp_err_to_name(err));
+            }
+        }
+        nvs_close(my_handle);
+    }
+
+    return err;
+}
+
+/**
+ * @brief 
+ * 
+ * @param name 
+ * @param key 
+ * @param out 
+ * @return int 
+ */
+int nvs_read_node_config_number(const char *name, const char *key, uint32_t *out)
+{
+    nvs_handle_t my_handle;
+    esp_err_t err = nvs_open_from_partition("user_ble", name, NVS_READWRITE, &my_handle);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+        return 1;
+    }
+    else
+    {
+        err = nvs_get_u32(my_handle, key, (uint32_t *)out);
+        if (err != ESP_OK)
+        {
+            if (err == ESP_ERR_NVS_NOT_FOUND)
+            {
+                // ESP_LOGE(TAG, "%s:%s is not initialized yet!\n", name, key);
+            }
+            nvs_close(my_handle);
+            return 1;
+        }
+        nvs_close(my_handle);
+    }
+    return 0;
 }

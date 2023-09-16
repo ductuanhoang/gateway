@@ -160,6 +160,9 @@ ble_mesh_provisioner_bind_model_t provisioner_local_bind;
 be_mesh_messange_t ble_message_message;
 be_mesh_prov_t be_mesh_prov;
 be_mesh_prov_t be_mesh_read;
+
+// test control function on/off
+extern int ble_mesh_send_gen_onoff_set(uint8_t state, uint16_t addr);
 /**
  * @brief command ble_send -u 0x19 -s 1
  *
@@ -167,7 +170,7 @@ be_mesh_prov_t be_mesh_read;
  * @param argv
  * @return int
  */
-static int ble_send(int argc, char **argv)
+static int ble_control_on_off(int argc, char **argv)
 {
     printf("send message \r\n");
     uint16_t element_addr = 0;
@@ -182,8 +185,8 @@ static int ble_send(int argc, char **argv)
 
     arg_int_to_value(ble_message_message.unicast_addr, element_addr, "element set status");
     arg_int_to_value(ble_message_message.status, status, "element address");
-
     printf("send message to address: %x with status: %d\r\n", element_addr, status);
+    ble_mesh_send_gen_onoff_set(status, element_addr);
     return 0;
 }
 
@@ -244,14 +247,29 @@ static int ble_prov_enable(int argc, char **argv)
  * @param argv
  * @return int
  */
+static int ble_show_proved_number(void)
+{
+    // printf("number in list unprov: %d \r\n", ble_mesh_provision_device_get_num_devices());
+    ble_mesh_provision_device_show_devices();
+    return 0;
+}
+
+/**
+ * @brief command ble_prov -u 0
+ * ble_read -u 3
+ *
+ * @param argc
+ * @param argv
+ * @return int
+ */
 static int ble_show_unprov_number(void)
 {
-
     printf("number in list unprov: %d \r\n", ble_mesh_provision_device_get_num_devices());
     return 0;
 }
 
 extern void ble_mesh_send_sensor_message(uint32_t opcode, uint16_t addr);
+
 
 static int ble_read(int argc, char **argv)
 {
@@ -272,6 +290,7 @@ static int ble_read(int argc, char **argv)
     ble_mesh_send_sensor_message(ESP_BLE_MESH_MODEL_OP_SENSOR_GET, value);
     return 0;
 }
+
 
 static int ble_binding(int argc, char **argv)
 {
@@ -349,10 +368,10 @@ static void ble_mesh_command(void)
     ble_message_message.end = arg_end(1);
 
     const esp_console_cmd_t cmd_send = {
-        .command = "ble_send",
-        .help = "send message to ble mesh",
+        .command = "ble_control",
+        .help = "control message to ble mesh",
         .hint = NULL,
-        .func = &ble_send,
+        .func = &ble_control_on_off,
         .argtable = &ble_message_message,
     };
 
@@ -391,6 +410,15 @@ static void ble_mesh_command(void)
     };
 
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_show_number_unprov));
+
+    const esp_console_cmd_t cmd_show_number_prov = {
+        .command = "ble_prov_number",
+        .help = "show the number of devices provisioned by the provider",
+        .hint = NULL,
+        .func = &ble_show_proved_number,
+    };
+
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_show_number_prov));
 
     be_mesh_prov.index = arg_int1("u", NULL, "<index>", "index");
     be_mesh_prov.end = arg_end(1);

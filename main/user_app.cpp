@@ -71,7 +71,6 @@ static void aws_subscribeAllTopic(void);
 static void userReportDataSensor(void);
 static void userControlReportDataSensorTest(void);
 
-static void currentCalculator(void);
 static void user_ble_mesh_event_data(const esp_ble_mesh_unprov_dev_add_t *data, void *event);
 /***********************************************************************************************************************
  * Exported global variables and functions (to be accessed by other files)
@@ -80,8 +79,9 @@ DeviceManager my_gateway("44444");
 UserTime Userlocaltime;
 EndDeviceData_t my_end_device_data_1;
 EndDeviceData_t my_end_device_data_2;
+//
+EndDeviceData_t my_end_device_data[CONFIG_BLE_MESH_MAX_PROV_NODES];
 EndDeviceData_t my_hub_data;
-EndDeviceData_t my_end_device_data_old_data;
 
 EnergyMonitor emon1;
 /***********************************************************************************************************************
@@ -111,7 +111,6 @@ void app_init(void)
     user_console_init();
     user_button_callback_init(user_app_button_callback);
     my_gateway.setDeviceId(gateway_data.HubId);
-    emon1.current(111.1);
 
     if (user_get_wifi_info() == false)
     {
@@ -138,13 +137,16 @@ void app_init(void)
         {
             ESP_LOGI(TAG_MAIN, "device has provisioned");
             if (aws_iot_init() == 0)
+            {
                 ESP_LOGI(TAG_MAIN, "Connected to AWS...");
+                aws_subscribeAllTopic();
+                xTaskCreatePinnedToCore(&main_report_task, "main_report_task", 4096, nullptr, 5, nullptr, 1);
+            }
         }
     }
 
     // wifi_scan_report_callback_init(wifible_report_scanned); // set wifi scan callback
     // user_wifi_scan();
-    xTaskCreatePinnedToCore(&main_report_task, "main_report_task", 4096, nullptr, 5, nullptr, 1);
 }
 
 static void event_mqtt_message(char *topicName, int payloadLen, char *payLoad)
@@ -158,18 +160,20 @@ static void event_mqtt_message(char *topicName, int payloadLen, char *payLoad)
     if (endDeviceData_controled.id_command == 1) // control command
     {
         ESP_LOGI(TAG_MAIN, "endDeviceData_controled name = %s", endDeviceData_controled.id_name);
-        ESP_LOGI(TAG_MAIN, "my_end_device_data_1 name = %s", my_end_device_data_1.id_name);
         if (strcmp(my_end_device_data_1.id_name, endDeviceData_controled.id_name) == 0)
         {
             my_end_device_data_1.status = endDeviceData_controled.status;
             ESP_LOGI(TAG_MAIN, "setting status sensor1 = %d", my_end_device_data_1.status);
+            uint16_t node_index = ble_mesh_get_uuid_with_name((const char *)my_end_device_data_1.id_name);
             if (my_end_device_data_1.status == 1)
             {
-                my_end_device_data_1.current = 0.08;
+                ble_mesh_send_gen_onoff_set(1, node_index);
+                my_end_device_data_1.current = 0.00;
                 my_end_device_data_1.power = my_end_device_data_1.current * my_end_device_data_1.voltage;
             }
             else
             {
+                ble_mesh_send_gen_onoff_set(0, node_index);
                 my_end_device_data_1.current = 0;
                 my_end_device_data_1.power = my_end_device_data_1.current * my_end_device_data_1.voltage;
             }
@@ -177,14 +181,17 @@ static void event_mqtt_message(char *topicName, int payloadLen, char *payLoad)
         else if (strcmp(my_end_device_data_2.id_name, endDeviceData_controled.id_name) == 0)
         {
             my_end_device_data_2.status = endDeviceData_controled.status;
-            ESP_LOGI(TAG_MAIN, "setting status sensor1 = %d", my_end_device_data_2.status);
+            uint16_t node_index = ble_mesh_get_uuid_with_name((const char *)my_end_device_data_2.id_name);
+            ESP_LOGI(TAG_MAIN, "setting status sensor 2 = %d", my_end_device_data_2.status);
             if (my_end_device_data_2.status == 1)
             {
-                my_end_device_data_2.current = 0.08;
+                ble_mesh_send_gen_onoff_set(1, node_index);
+                my_end_device_data_2.current = 0.00;
                 my_end_device_data_2.power = my_end_device_data_2.current * my_end_device_data_2.voltage;
             }
             else
             {
+                ble_mesh_send_gen_onoff_set(0, node_index);
                 my_end_device_data_2.current = 0;
                 my_end_device_data_2.power = my_end_device_data_2.current * my_end_device_data_2.voltage;
             }
@@ -194,6 +201,11 @@ static void event_mqtt_message(char *topicName, int payloadLen, char *payLoad)
     {
         // scan command response
         ble_mesh_provisioner_prov_enable(true); // enable ble provisioner
+    }
+    else if (endDeviceData_controled.id_command == 3) // delete command
+    {
+
+        // ble_mesh_provisioner_delete_with_name();
     }
 }
 
@@ -217,11 +229,13 @@ static void user_ble_mesh_event_data(const esp_ble_mesh_unprov_dev_add_t *data, 
     // report to the AWS
     ESP_LOGI(TAG_MAIN, "HUB report example %s", aws_getPublishTopic().c_str());
     aws_publish(aws_getPublishTopic().c_str(), message.c_str(), strlen(message.c_str()));
-    my_gateway.freeDataContent();
+    my_gateway.freeScanContent();
 }
 
 static void main_report_task(void *param)
 {
+    ESP_LOGI(TAG_MAIN, "*******aws main_report_task called");
+
     while (!aws_isConnected())
     {
         ESP_LOGI(TAG_MAIN, " waiting for connection ...");
@@ -262,7 +276,10 @@ static void main_report_task(void *param)
         {
             userReportDataSensor();
             // userControlReportDataSensorTest();
-            currentCalculator();
+        }
+        else
+        {
+            ESP_LOGE(TAG_MAIN, "aws_isConnected = %d", aws_isConnected());
         }
 
         // _state_test ^= 1;
@@ -422,6 +439,24 @@ static bool user_app_save_wifi_info(const char *ssid, const char *password)
 static void user_app_button_callback(int num, int event)
 {
     ESP_LOGI(TAG_MAIN, "button num %d with event %d", num, event);
+    if (event == E_USER_BUTTON_HOLD)
+    {
+        ESP_LOGI(TAG_MAIN, "erase flash device");
+        ble_mesh_erase_settings(true);
+        ESP_LOGI(TAG_MAIN, "restart device");
+        // erase flash device
+        // int err = nvs_flash_erase_partition("aws_server");
+        // if (err != ESP_OK)
+        // {
+        //     ESP_LOGE(TAG_MAIN, "Error (%s) nvs_flash_erase_partition handle!\n", esp_err_to_name(err));
+        // }
+        // else
+        // {
+        //     ESP_LOGI(TAG_MAIN, "nvs_flash_erase_partition done");
+        // }
+
+        esp_restart();
+    }
 }
 
 /**
@@ -430,15 +465,30 @@ static void user_app_button_callback(int num, int event)
  */
 static void userReportDataSensor(void)
 {
-    // check sensor data
-    my_gateway.deviceReportDataPoint("Sensor_1", my_end_device_data_1);
-    my_gateway.deviceReportDataPoint("Sensor_2", my_end_device_data_2);
-    my_gateway.setGateWayData(my_hub_data);
+    std::string node_name;
+    uint8_t number_device_node = 0;
+    number_device_node = ble_mesh_provisioned_device_get_num_devices();
+    if (number_device_node != 0)
+    {
+        // check sensor data
+        for (size_t i = 0; i < number_device_node; i++)
+        {
+            my_gateway.deviceReportDataPoint(ble_mesh_provisioned_device_get_name(i), my_end_device_data[i]);
+        }
 
-    std::string message = my_gateway.deviceReportAllDataPoints();
-    ESP_LOGI(TAG_MAIN, "HUB report example %s", aws_getPublishTopic().c_str());
-    aws_publish(aws_getPublishTopic().c_str(), message.c_str(), strlen(message.c_str()));
-    my_gateway.freeDataContent();
+        my_gateway.deviceReportDataPoint("Sensor_1", my_end_device_data_1);
+        my_gateway.deviceReportDataPoint("Sensor_2", my_end_device_data_2);
+        my_gateway.setGateWayData(my_hub_data);
+
+        std::string message = my_gateway.deviceReportAllDataPoints();
+        ESP_LOGI(TAG_MAIN, "HUB report example %s", aws_getPublishTopic().c_str());
+        aws_publish(aws_getPublishTopic().c_str(), message.c_str(), strlen(message.c_str()));
+        my_gateway.freeDataContent();
+    }
+    else
+    {
+        ESP_LOGE(TAG_MAIN, "Has no sensor device available");
+    }
 }
 
 /**
@@ -455,18 +505,6 @@ static void userControlReportDataSensorTest(void)
     aws_publish(TopicSub.c_str(), buffer_send, strlen(buffer_send));
 }
 
-/**
- * @brief
- *
- */
-static void currentCalculator(void)
-{
-    double Irms = emon1.calcIrms(1480);
-    double current1 = (Irms * 1.875 - 0.2 - 4.6) / 3.16;
-    if (current1 < 0)
-        current1 = 0;
-    ESP_LOGI(TAG_MAIN, "Current %f", current1);
-}
 /***********************************************************************************************************************
  * End of file
  ***********************************************************************************************************************/

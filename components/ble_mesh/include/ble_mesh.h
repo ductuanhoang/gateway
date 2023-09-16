@@ -62,6 +62,7 @@ extern "C"
         uint16_t net_idx;
         uint16_t app_idx;
         uint8_t app_key[16];
+        uint8_t net_key[16];
     } esp_ble_mesh_key_t;
 
     extern esp_ble_mesh_key_t prov_key;
@@ -81,6 +82,14 @@ extern "C"
      */
     int ble_mesh_provisioner_prov_enable(uint8_t enable);
 
+    /**
+     * @brief deletes the node sensor with name
+     *
+     * @param name
+     * @return int
+     */
+    int ble_mesh_provisioner_delete_with_name(const char *name);
+    
     /**
      * @brief returns the provsion enabled status
      *
@@ -190,6 +199,21 @@ extern "C"
      * @return int
      */
     int ble_mesh_enable_recv_hearbeat(uint8_t enable);
+
+    /**
+     * @brief erase the flash device from internal flash
+     *
+     * @param erase
+     */
+    void ble_mesh_erase_settings(bool erase);
+
+    /**
+     * @brief get uuid from name string
+     *
+     * @param name
+     * @return uint16_t
+     */
+    uint16_t ble_mesh_get_uuid_with_name(const char *name);
 #ifdef __cplusplus
 }
 #endif

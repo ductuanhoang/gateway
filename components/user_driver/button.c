@@ -52,7 +52,7 @@ void user_button_init(void)
     io_conf.pull_up_en = 1;
     gpio_config(&io_conf);
 
-    xTaskCreate(user_button_task, "user_button_task", 2048, NULL, 10, NULL);
+    xTaskCreate(user_button_task, "user_button_task", 4096, NULL, 10, NULL);
 }
 
 /**

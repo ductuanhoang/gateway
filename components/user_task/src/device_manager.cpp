@@ -122,7 +122,8 @@ static std::map<DeviceManager::DataDevice, const char *> GetDeviceNameStringID =
 
 static std::map<DeviceManager::Controltype, const char *> GetControlTypeStringID = {
     {DeviceManager::Controltype::CONTROL, "CONTROL"},
-    {DeviceManager::Controltype::SCAN, "SCAN"}};
+    {DeviceManager::Controltype::SCAN, "SCAN"},
+    {DeviceManager::Controltype::DELETE, "DELETE_SENSOR"}};
 
 void DeviceManager::deviceReportDataPoint(std::string DP, EndDeviceData_t data)
 {
@@ -294,7 +295,7 @@ EndDeviceData_t DeviceManager::devivePasserMessage(std::string messge_read)
             if (strcmp(command, GetControlTypeStringID[DeviceManager::Controltype::CONTROL]) == 0)
             {
                 end_device_data_buffer.id_command = 1;
-                end_device_data_buffer.status = doc["state"]["desired"]["command"]["name"];
+                end_device_data_buffer.status = doc["state"]["desired"]["command"]["parameter"]["state"];
 
                 const char *id_name = doc["state"]["desired"]["command"]["parameter"]["breakermateID"];
                 snprintf(end_device_data_buffer.id_name, sizeof(end_device_data_buffer.id_name), "%s", id_name);
@@ -306,6 +307,15 @@ EndDeviceData_t DeviceManager::devivePasserMessage(std::string messge_read)
                 // set event scanning
                 end_device_data_buffer.id_command = 2;
                 ESP_LOGI(TAG_DEVICE_MANAGER, "call event scan");
+            }
+            else if (strcmp(command, GetControlTypeStringID[DeviceManager::DELETE]) == 0)
+            {
+                end_device_data_buffer.id_command = 3;
+                ESP_LOGI(TAG_DEVICE_MANAGER, "call event delete");
+                const char *id_name = doc["state"]["desired"]["command"]["parameter"]["breakermateID"];
+                snprintf(end_device_data_buffer.id_name, sizeof(end_device_data_buffer.id_name), "%s", id_name);
+
+                ESP_LOGI(TAG_DEVICE_MANAGER, "delete command id : %s", end_device_data_buffer.id_name);
             }
         }
         else

@@ -22,6 +22,9 @@
 #define NAMESPACE_WIFI_CRED "nvs.net80211"
 #define WIFI_SSID_KEY "sta.ssid"
 #define WIFI_PASS_KEY "sta.pass"
+
+#define NAMESPACE_BLE_MESH "BLE_MESH"
+#define NUMBER_OF_DEVICES "ble_num" // number of devices provisioned
 #ifdef __cplusplus
 extern "C"
 {
@@ -39,6 +42,27 @@ extern "C"
     esp_err_t Write_Blob(const char *name, const char *key, uint8_t *data, uint16_t len);
     esp_err_t Read_Blob(const char *name, const char *key, uint8_t *data, size_t *length);
 
+    /**
+     * @brief
+     *
+     * @param name
+     * @param key
+     * @param Out_String
+     * @param length
+     * @return int
+     */
+    int nvs_read_node_config_name(const char *name, const char *key, char *Out_String, size_t *length);
+
+    /**
+     * @brief
+     *
+     * @param name
+     * @param key
+     * @param out
+     * @return int
+     */
+    int nvs_read_node_config_number(const char *name, const char *key, uint32_t *out);
+    
 #ifdef __cplusplus
 } // closing brace for extern "C"
 #endif

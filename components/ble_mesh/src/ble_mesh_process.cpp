@@ -59,7 +59,18 @@
 #define TIME_TASK_WORKING 2000
 
 std::vector<std::tuple<esp_ble_mesh_unprov_dev_add_t, uint32_t>> scan_table_dev_unprov;
-std::vector<esp_ble_mesh_node_info_t> node_provisioned_table;
+std::vector<std::string> node_provisioned_table; // only need storage name
+
+/**
+ * @brief this struct use save name of the sensor node provisioned
+ *
+ */
+typedef struct
+{
+    uint8_t num_devices;
+    std::string name[CONFIG_BLE_MESH_MAX_PROV_NODES];
+} node_provisioned_info_t;
+
 /***********************************************************************************************************************
  * Private global variables and functions
  ***********************************************************************************************************************/
@@ -70,7 +81,7 @@ static std::string convertToString(char *a, int size);
 /***********************************************************************************************************************
  * Exported global variables and functions (to be accessed by other files)
  ***********************************************************************************************************************/
-
+static node_provisioned_info_t node_provisioned_info;
 /***********************************************************************************************************************
  * Imported global variables and functions (from other files)
  ***********************************************************************************************************************/
@@ -84,36 +95,24 @@ void ble_mesh_tasks_init(void)
  *
  * @param node
  */
-void ble_mesh_add_proved_devices(esp_ble_mesh_node_info_t node)
+void ble_mesh_add_proved_devices(const char *node_name)
 {
     if (node_provisioned_table.size() > CONFIG_BLE_MESH_MAX_PROV_NODES)
         return;
-    node_provisioned_table.push_back(node);
+    node_provisioned_table.push_back(node_name);
+    // TODO: save this new node to flash memory
+
 }
 
 /**
- * @brief 
- * 
- * @param node_name 
- * @return uint16_t 
+ * @brief
+ *
  */
-uint16_t ble_mesh_get_node_info_with_name(std::string node_name)
+void ble_mesh_powerup_load_flash_devices(void)
 {
-    uint16_t add = 0;
-    std::string node_id;
-
-    node_id = node_name.substr(strlen("SENSOR_"), node_name.length());
-    // uint8_t uuid[16];
-    // uint16_t unicast;
-    for (size_t i = 0; i < node_provisioned_table.size(); i++)
-    {
-        std::string local_id = convertToString((char *)node_provisioned_table.at(i).uuid, 16);
-        if( local_id == node_id)
-            add = node_provisioned_table.at(i).unicast;
-    }
-
-    return add;
+    // get number of devices
 }
+
 void ble_mesh_provision_device_index(uint32_t index)
 {
     if (scan_table_dev_unprov.empty() | (index > scan_table_dev_unprov.size()))
@@ -130,11 +129,63 @@ void ble_mesh_provision_device_index(uint32_t index)
 /**
  * @brief
  *
+ * @param index
+ * @return const char*
+ */
+const char *ble_mesh_get_node_name_with_index(uint16_t index)
+{
+    return esp_ble_mesh_provisioner_get_node_name(index);
+}
+/**
+ * @brief
+ *
  * @return uint8_t
  */
 uint8_t ble_mesh_provision_device_get_num_devices(void)
 {
     return scan_table_dev_unprov.size();
+}
+
+/**
+ * @brief
+ *
+ */
+void ble_mesh_provision_device_show_devices(void)
+{
+    esp_ble_mesh_node_info_t node;
+    uint8_t num_devices = 0;
+    num_devices = node_provisioned_table.size();
+    if (num_devices == 0)
+    {
+        ESP_LOGE(TAG, "No provision devices");
+    }
+    else
+    {
+        for (size_t i = 0; i < num_devices; i++)
+        {
+            ESP_LOGI(TAG, "Device name: %s", node_provisioned_table.at(i).c_str());
+        }
+    }
+}
+/**
+ * @brief
+ *
+ * @return uint8_t
+ */
+uint8_t ble_mesh_provisioned_device_get_num_devices(void)
+{
+    return node_provisioned_table.size();
+}
+
+/**
+ * @brief 
+ * 
+ * @param index 
+ * @return char* 
+ */
+const char *ble_mesh_provisioned_device_get_name(uint8_t index)
+{
+    return node_provisioned_table.at(index).c_str();
 }
 /**
  * @brief
@@ -227,7 +278,25 @@ static int provision_device(esp_ble_mesh_unprov_dev_add_t device)
 
     return ret;
 }
+/**
+ * @brief get sensor values from sensor node provisioned by gateway
+ *
+ */
+static void ble_mesh_get_sensors(void *param)
+{
+    uint16_t number_of_sensors;
+    while (1)
+    {
+        /* code */
+        number_of_sensors = node_provisioned_table.size();
+        for (size_t i = 0; i < number_of_sensors; i++)
+        {
+            /* code */
+        }
 
+        vTaskDelay(TIME_TASK_WORKING / portTICK_PERIOD_MS);
+    }
+}
 /**
  * @brief task scan ble device mesh
  *
@@ -296,10 +365,10 @@ static void ble_mesh_scan_timeout(void *param)
 
 /**
  * @brief conver char array to string
- * 
- * @param a 
- * @param size 
- * @return std::string 
+ *
+ * @param a
+ * @param size
+ * @return std::string
  */
 static std::string convertToString(char *a, int size)
 {

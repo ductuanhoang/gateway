@@ -32,6 +32,7 @@
 #include "esp_ble_mesh_config_model_api.h"
 #include "esp_ble_mesh_generic_model_api.h"
 #include "esp_ble_mesh_sensor_model_api.h"
+#include "provisioner_main.h"
 
 #include "ble_mesh_example_init.h"
 #include "ble_mesh_process.h"
@@ -43,6 +44,8 @@
 #include "esp_log.h"
 
 #include "user_console.h"
+#include "nvs_flash.h"
+#include "settings.h"
 /***********************************************************************************************************************
  * Macro definitions
  ***********************************************************************************************************************/
@@ -50,9 +53,9 @@
 /***********************************************************************************************************************
  * Typedef definitions
  ***********************************************************************************************************************/
-#define TAG "BLE_MESH"
+#define TAG "USER_BLE_MESH"
 
-#define PREFIX_NODE_NAME "SENSOR_"
+#define PREFIX_NODE_NAME "Sensor_"
 #define CID_ESP 0x02E5
 
 #define LED_OFF 0x00
@@ -74,7 +77,6 @@
 #define COMP_DATA_2_OCTET(msg, offset) (msg[offset + 1] << 8 | msg[offset])
 
 static uint16_t sensor_prop_id;
-
 
 /***********************************************************************************************************************
  * Private global variables and functions
@@ -181,7 +183,7 @@ int user_ble_mesh_init(void)
 {
     esp_err_t err = ESP_OK;
     uint8_t match[2] = {0x32, 0x10};
-
+    uint8_t key[16] = {0};
     err = bluetooth_init();
     if (err)
     {
@@ -191,9 +193,26 @@ int user_ble_mesh_init(void)
 
     ble_mesh_get_dev_uuid(dev_uuid);
 
-    prov_key.net_idx = ESP_BLE_MESH_KEY_PRIMARY;
+    prov_key.net_idx = 0x0000;
     prov_key.app_idx = APP_KEY_IDX;
     memset(prov_key.app_key, APP_KEY_OCTET, sizeof(prov_key.app_key));
+
+    // esp_ble_mesh_prov_data_info_t info = {
+    //     .net_idx = 0x0000,
+    //     .flag = BIT(0),
+    // };
+    // err = esp_ble_mesh_provisioner_add_local_net_key(key, prov_key.net_idx);
+    // if (err != ESP_OK)
+    // {
+    //     ESP_LOGE(TAG, "Failed to set esp_ble_mesh_provisioner_add_local_net_key (err %d)", err);
+    //     return err;
+    // }
+    // err = esp_ble_mesh_provisioner_set_prov_data_info(&info);
+    // if (err != ESP_OK)
+    // {
+    //     ESP_LOGE(TAG, "Failed to set esp_ble_mesh_provisioner_set_prov_data_info (err %d)", err);
+    //     return err;
+    // }
 
     esp_ble_mesh_register_prov_callback(ble_mesh_provisioning_cb);           // register BLE Mesh provisioning callback.
     esp_ble_mesh_register_config_client_callback(ble_mesh_config_client_cb); // is the register function for Config Client Model.
@@ -222,12 +241,33 @@ int user_ble_mesh_init(void)
         return err;
     }
 
+    // add local app key if not already
     err = esp_ble_mesh_provisioner_add_local_app_key(prov_key.app_key, prov_key.net_idx, prov_key.app_idx);
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "Failed to add local AppKey (err %d)", err);
         return err;
     }
+    // const uint8_t *local_app_key;
+    // local_app_key = esp_ble_mesh_provisioner_get_local_app_key(prov_key.net_idx, prov_key.app_idx);
+    // if (local_app_key == NULL)
+    // {
+    //     ESP_LOGI(TAG, "Failed to get local app key (err %d)", err);
+    //     ESP_LOGI(TAG, "Add local app key");
+    //     err = esp_ble_mesh_provisioner_add_local_app_key(prov_key.app_key, prov_key.net_idx, prov_key.app_idx);
+    //     if (err != ESP_OK)
+    //     {
+    //         ESP_LOGE(TAG, "Failed to add local AppKey (err %d)", err);
+    //         return err;
+    //     }
+    // }
+
+    // err = esp_ble_mesh_provisioner_add_local_net_key(prov_key.net_key, 0x01);
+    // if (err != ESP_OK)
+    // {
+    //     ESP_LOGE(TAG, "Failed to add local NetKey (err %d)", err);
+    //     return err;
+    // }
 
     err = esp_ble_mesh_provisioner_prov_disable(ESP_BLE_MESH_PROV_ADV | ESP_BLE_MESH_PROV_GATT);
     if (err != ESP_OK)
@@ -362,18 +402,16 @@ static esp_err_t prov_complete(int node_idx, const esp_ble_mesh_octet16_t uuid,
     esp_ble_mesh_client_common_param_t common = {0};
     esp_ble_mesh_cfg_client_get_state_t get_state = {0};
     esp_ble_mesh_node_info_t *node = NULL;
-    char name[11] = {0};
+    char node_name[11] = {0};
     int err;
 
     ESP_LOGI(TAG, "prov_complete node index: 0x%x, unicast address: 0x%02x, element num: %d, netkey index: 0x%02x",
              node_idx, unicast, elem_num, net_idx);
     ESP_LOGI(TAG, "device uuid: %s", bt_hex(uuid, 8));
-
-    sprintf(name, "%s%d", PREFIX_NODE_NAME, node_idx);
-
-    ble_mesh_add_proved_devices(*node);
     
-    err = esp_ble_mesh_provisioner_set_node_name(node_idx, name);
+    sprintf(node_name, "%s%s", PREFIX_NODE_NAME, (bt_hex(uuid, 8)));
+
+    err = esp_ble_mesh_provisioner_set_node_name(node_idx, node_name);
     if (err)
     {
         ESP_LOGE(TAG, "%s: Set node name failed", __func__);
@@ -400,6 +438,7 @@ static esp_err_t prov_complete(int node_idx, const esp_ble_mesh_octet16_t uuid,
         ESP_LOGE(TAG, "%s: Get node info failed", __func__);
         return ESP_FAIL;
     }
+    ble_mesh_add_proved_devices(node_name);
 
     ble_mesh_set_msg_common(&common, node, config_client.model, ESP_BLE_MESH_MODEL_OP_COMPOSITION_DATA_GET);
     get_state.comp_data_get.page = COMP_DATA_PAGE_0;
@@ -489,9 +528,22 @@ int ble_mesh_provisioner_prov_enable(uint8_t enable)
 }
 
 /**
- * @brief returns the provsion enabled status
+ * @brief deletes the node sensor with name
  * 
+ * @param name 
  * @return int 
+ */
+int ble_mesh_provisioner_delete_with_name(const char *name)
+{
+    esp_err_t result = ESP_OK;
+
+
+    return result;
+}
+/**
+ * @brief returns the provsion enabled status
+ *
+ * @return int
  */
 int ble_mesh_provisioner_get_prov_enabled(void)
 {
@@ -606,6 +658,7 @@ static void ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
         {
             // esp_err_t err = 0;
             prov_key.app_idx = param->provisioner_add_app_key_comp.app_idx;
+            ESP_LOGI(TAG, "***** prov_key.app_idx = 0x%02x", prov_key.app_idx);
             // TODO: add local app key to both sensor and on/off services of this device
             user_ble_mesh_process_event(E_USER_BLE_MESH_BIDING_APP_KEY); // TODO: done
         }
@@ -617,7 +670,15 @@ static void ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
     case ESP_BLE_MESH_PROVISIONER_STORE_NODE_COMP_DATA_COMP_EVT:
         ESP_LOGI(TAG, "ESP_BLE_MESH_PROVISIONER_STORE_NODE_COMP_DATA_COMP_EVT, err_code %d", param->provisioner_store_node_comp_data_comp.err_code);
         break;
+    // add new event listener
+    case ESP_BLE_MESH_PROVISIONER_ADD_LOCAL_NET_KEY_COMP_EVT:
+        ESP_LOGI(TAG, "ESP_BLE_MESH_PROVISIONER_ADD_LOCAL_NET_KEY_COMP_EVT, err_code %d", param->provisioner_bind_app_key_to_model_comp.err_code);
+        break;
+    case ESP_BLE_MESH_HEARTBEAT_MESSAGE_RECV_EVT:
+        ESP_LOGI(TAG, "ESP_BLE_MESH_HEARTBEAT_MESSAGE_RECV_EVT");
+        break;
     default:
+        ESP_LOGI(TAG, "Unknown event type %d", event);
         break;
     }
 
@@ -921,6 +982,8 @@ static void ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t event,
                      param->status_cb.model_app_status.company_id == ESP_BLE_MESH_CID_NVAL)
             {
                 ESP_LOGW(TAG, "Provision and config on/off services successfully");
+                ESP_LOGI(TAG, "***** prov_key.app_idx = 0x%04x", prov_key.app_idx);
+                ESP_LOGI(TAG, "***** prov_key.net_idx = 0x%04x", prov_key.net_idx);
             }
 
             if (param->status_cb.model_app_status.model_id == ESP_BLE_MESH_MODEL_ID_GEN_ONOFF_SRV)
@@ -1343,19 +1406,25 @@ void ble_mesh_send_sensor_message(uint32_t opcode, uint16_t addr)
 {
     esp_ble_mesh_sensor_client_get_state_t get = {0};
     esp_ble_mesh_client_common_param_t common = {0};
-    esp_ble_mesh_node_info_t *node = NULL;
-
+    esp_ble_mesh_node_info_t node;
+    esp_ble_mesh_node_t *node_buffer = NULL;
     esp_err_t err = ESP_OK;
     printf("check freeheap 2:%d\n", esp_get_free_heap_size());
-    node = ble_mesh_get_node_info(addr);
-    if (node == NULL)
+
+    node_buffer = esp_ble_mesh_provisioner_get_node_with_addr(addr);
+    if (node_buffer == NULL)
     {
         ESP_LOGE(TAG, "Node 0x%04x not exists", addr);
         return;
     }
-    ESP_LOGI(TAG, "ble_mesh_send_sensor_message = %x", node->unicast);
+    node.unicast = node_buffer->unicast_addr;
+    node.elem_num = node_buffer->element_num;
 
-    int ret = ble_mesh_set_msg_common(&common, node, sensor_client.model, opcode);
+    memcpy(node.uuid, node_buffer->dev_uuid, 16);
+
+    ESP_LOGI(TAG, "ble_mesh_send_sensor_message = %x", node.unicast);
+
+    int ret = ble_mesh_set_msg_common(&common, &node, sensor_client.model, opcode);
     if (ret == ESP_ERR_INVALID_ARG)
         ESP_LOGE(TAG, "****invalist aggr yo");
     switch (opcode)
@@ -1472,6 +1541,44 @@ int ble_mesh_enable_recv_hearbeat(uint8_t enable)
     return result;
 }
 
+/**
+ * @brief erase the flash device from internal flash
+ *
+ * @param erase
+ */
+void ble_mesh_erase_settings(bool erase)
+{
+    bt_mesh_settings_reset(erase);
+    int err = nvs_flash_erase_partition("ble_mesh");
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Error (%s) nvs_flash_erase_partition handle!\n", esp_err_to_name(err));
+    }
+    else
+    {
+        ESP_LOGI(TAG, "nvs_flash_erase_partition done");
+    }
+}
+
+/**
+ * @brief get uuid from name string
+ * 
+ * @param name 
+ * @return uint16_t 
+ */
+uint16_t ble_mesh_get_uuid_with_name(const char *name)
+{
+    uint16_t uuid;
+    esp_ble_mesh_node_t *node_info = NULL;
+    node_info = esp_ble_mesh_provisioner_get_node_with_name(name);
+    if (!node_info)
+    {
+        ESP_LOGE(TAG, "Node name %s not exists", name);
+        return 0;
+    }
+    uuid = node_info->unicast_addr;
+    return (uint16_t)uuid;
+}
 /***********************************************************************************************************************
  * End of file
  ***********************************************************************************************************************/

@@ -16,17 +16,9 @@
 /***        Include files                                                 ***/
 /****************************************************************************/
 // #include <string>
-#include <stdint.h>
 #include "esp_ble_mesh_defs.h"
 #include "ble_mesh.h"
-// #include <string.h>
-/**
- * @brief 
- * 
- * @param node_name 
- * @return uint16_t 
- */
-// uint16_t ble_mesh_get_node_info_with_name(std::string node_name);
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -74,13 +66,40 @@ void ble_mesh_provision_device_index(uint32_t index);
 uint8_t ble_mesh_provision_device_get_num_devices(void);
 
 /**
+ * @brief 
+ * 
+ * @return uint8_t 
+ */
+uint8_t ble_mesh_provisioned_device_get_num_devices(void);
+
+/**
+ * @brief 
+ * 
+ * @param index 
+ * @return char* 
+ */
+const char *ble_mesh_provisioned_device_get_name(uint8_t index);
+
+/**
+ * @brief 
+ * 
+ */
+void ble_mesh_provision_device_show_devices(void);
+
+/**
  * @brief
  *
  * @param node
  */
-void ble_mesh_add_proved_devices(esp_ble_mesh_node_info_t node);
+void ble_mesh_add_proved_devices(const char *node_name);
 
-
+/**
+ * @brief 
+ * 
+ * @param index 
+ * @return const char* 
+ */
+const char* ble_mesh_get_node_name_with_index(uint16_t index);
 
 /**
  * @brief 

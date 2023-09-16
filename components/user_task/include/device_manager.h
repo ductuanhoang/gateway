@@ -61,7 +61,8 @@ public:
     enum Controltype
     {
         CONTROL,
-        SCAN
+        SCAN,
+        DELETE
     };
 
 private:
