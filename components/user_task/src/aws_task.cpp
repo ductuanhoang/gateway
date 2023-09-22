@@ -139,13 +139,14 @@ int aws_publish(const char *pubTopic, const char *pubPayLoad, int payLoadLen)
     return rc;
 }
 
-int aws_subscribe(const char *subTopic, pSubCallBackHandler_t pSubCallBackHandler)
+int aws_subscribe(const char *subTopic, uint16_t size_topic, pSubCallBackHandler_t pSubCallBackHandler)
 {
     IoT_Error_t rc;
 
     subApplCallBackHandler = pSubCallBackHandler;
-
-    ESP_LOGI(AWS_IOT, "Subscribing... %s", subTopic);
+    char buffer_topic[100];
+    snprintf(buffer_topic, size_topic, "%s", subTopic);
+    ESP_LOGI(AWS_IOT, "Subscribing... %s with len = %d", buffer_topic, size_topic);
     // rc = aws_iot_mqtt_subscribe(&client, subTopic, strlen(subTopic), QOS1, iot_subscribe_callback_handler, nullptr);
     rc = aws_iot_mqtt_subscribe(&client, "$aws/things/44444/shadow/name/command/update/accepted", strlen("$aws/things/44444/shadow/name/command/update/accepted"), QOS1, iot_subscribe_callback_handler, nullptr);
     
@@ -286,11 +287,11 @@ void aws_iot_task(void *param)
         if (!aws_isConnected())
         {
             ESP_LOGE(AWS_IOT, "Disconnected!!, Attempting reconnection...");
-            // aws_iot_mqtt_disconnect(&client);
-            // ESP_LOGE(AWS_IOT, "Connecting");
+            aws_iot_mqtt_disconnect(&client);
+            ESP_LOGE(AWS_IOT, "Connecting");
 
             connect_awsiot(&client);
-            // aws_iot_mqtt_resubscribe(&client);
+            aws_iot_mqtt_resubscribe(&client);
         }
         else
         {
@@ -301,6 +302,11 @@ void aws_iot_task(void *param)
                 // If the client is attempting to reconnect we will skip the rest of the loop.
                 continue;
             }
+        }
+        // wifi disconnect
+        if (user_wifi_get_connected() != E_USER_WIFI_CONNECTED)
+        {
+            aws_iot_mqtt_disconnect(&client);
         }
 
         vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -316,9 +322,9 @@ static void connect_awsiot(AWS_IoT_Client *client)
         rc = aws_iot_mqtt_connect(client, &connectParams);
         if (SUCCESS != rc)
         {
-            aws_iot_counting_down++;
-            if(aws_iot_counting_down == 5)
-                esp_restart();
+            // aws_iot_counting_down++;
+            // if (aws_iot_counting_down == 5)
+            //     esp_restart();
             ESP_LOGE(AWS_IOT, "Error(%d) connecting to %s:%d", rc, mqttInitParams.pHostURL, mqttInitParams.port);
             vTaskDelay(10000 / portTICK_PERIOD_MS);
         }
@@ -332,40 +338,6 @@ static void connect_awsiot(AWS_IoT_Client *client)
     }
 }
 
-// void shadowTask(void *param)
-// {
-//     // initialise the shadow connection
-//     aws_iot_shadow_init(&mqttClient, shadowInitParams);
-
-//     // connect the shadow
-//     aws_iot_shadow_connect(&mqttClient, &shadowConnectParams);
-
-//     // register the delta callbacks
-//     aws_iot_shadow_register_delta(&mqttClient, &shadowParam1);
-//     aws_iot_shadow_register_delta(&mqttClient, &shadowParam2);
-//     aws_iot_shadow_register_delta(&mqttClient, &shadowParam3);
-
-//     while (networkConnected == true)
-//     {
-//         // wait for reporting period to elapse
-//         vTaskDelay(10000 / portTICK_PERIOD_MS);
-
-//         // yield to let MQTT receive message
-//         aws_iot_shadow_yield(&mqttClient, 250);
-
-//         // initialise the shadow document
-//         aws_iot_shadow_init_json_document(JsonDocumentBuffer, sizeOfJsonDocumentBuffer);
-
-//         // add the parameters to the shadow document
-//         aws_iot_shadow_add_reported(JsonDocumentBuffer, sizeOfJsonDocumentBuffer, 3, &shadowParam1, &shadowParam2, &shadowParam3);
-
-//         // finalise the shadow document
-//         aws_iot_finalize_json_document(JsonDocumentBuffer, sizeOfJsonDocumentBuffer);
-
-//         // update the shadow document
-//         aws_iot_shadow_update(&mqttClient, clientId, JsonDocumentBuffer, cbShadowUpdateStatus, NULL, 5, true);
-//     }
-// }
 /***********************************************************************************************************************
  * End of file
  ***********************************************************************************************************************/

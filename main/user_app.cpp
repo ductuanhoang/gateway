@@ -43,6 +43,7 @@
  * Typedef definitions
  ***********************************************************************************************************************/
 #define TAG_MAIN "USER APP"
+#define TIME_OUT_SCAN_RESULT 5000
 #include "ArduinoJson.h"
 
 #ifdef __cplusplus
@@ -71,7 +72,9 @@ static void aws_subscribeAllTopic(void);
 static void userReportDataSensor(void);
 static void userControlReportDataSensorTest(void);
 
-static void user_ble_mesh_event_data(const esp_ble_mesh_unprov_dev_add_t *data, void *event);
+static void user_ble_mesh_report_scan_result(void *param);
+static void set_default_value_new_sensor(void * param);
+
 /***********************************************************************************************************************
  * Exported global variables and functions (to be accessed by other files)
  ***********************************************************************************************************************/
@@ -80,10 +83,14 @@ UserTime Userlocaltime;
 EndDeviceData_t my_end_device_data_1;
 EndDeviceData_t my_end_device_data_2;
 //
-EndDeviceData_t my_end_device_data[CONFIG_BLE_MESH_MAX_PROV_NODES];
+// EndDeviceData_t my_end_device_data[CONFIG_BLE_MESH_MAX_PROV_NODES];
+
+std::vector<EndDeviceData_t> my_end_device_data;
+
 EndDeviceData_t my_hub_data;
 
 EnergyMonitor emon1;
+static bool bScan_active = false;
 /***********************************************************************************************************************
  * Imported global variables and functions (from other files)
  ***********************************************************************************************************************/
@@ -124,7 +131,8 @@ void app_init(void)
         user_wifi_init();
 
         user_ble_mesh_init();
-        ble_mesh_message_register_callback(user_ble_mesh_event_data);
+        ble_mesh_report_scan_result_register_callback(user_ble_mesh_report_scan_result);
+        user_ble_mesh_prov_complete_register(set_default_value_new_sensor);
         ble_mesh_tasks_init();
         // check if device has provision wifi before
         ESP_LOGI(TAG_MAIN, "device has wifi with: ");
@@ -132,6 +140,7 @@ void app_init(void)
         ESP_LOGI(TAG_MAIN, "                wifi pass = %s", device_info.wifi.pass);
         user_wifi_connect_AP((const char *)device_info.wifi.ssid, (const char *)device_info.wifi.pass);
 
+        xTaskCreate(main_report_task, "main_report_task", 4096, NULL, 2, NULL);
         // check aws provisioned
         if (mqtt_provision_task_start())
         {
@@ -139,8 +148,6 @@ void app_init(void)
             if (aws_iot_init() == 0)
             {
                 ESP_LOGI(TAG_MAIN, "Connected to AWS...");
-                aws_subscribeAllTopic();
-                xTaskCreatePinnedToCore(&main_report_task, "main_report_task", 4096, nullptr, 5, nullptr, 1);
             }
         }
     }
@@ -154,137 +161,192 @@ static void event_mqtt_message(char *topicName, int payloadLen, char *payLoad)
     ESP_LOGI(TAG_MAIN, "event_mqtt_message");
     ESP_LOGI(TAG_MAIN, "topicName = %s", topicName);
     // ESP_LOGI(TAG_MAIN, "payLoad = %s", payLoad);
-    EndDeviceData_t endDeviceData_controled;
-    endDeviceData_controled = my_gateway.devivePasserMessage(payLoad);
+    EndDeviceData_t device_control;
+    device_control = my_gateway.devivePasserMessage(payLoad);
 
-    if (endDeviceData_controled.id_command == 1) // control command
+    if (device_control.id_command == 1) // control command
     {
-        ESP_LOGI(TAG_MAIN, "endDeviceData_controled name = %s", endDeviceData_controled.id_name);
-        if (strcmp(my_end_device_data_1.id_name, endDeviceData_controled.id_name) == 0)
+        ESP_LOGI(TAG_MAIN, "device_control name = %s", device_control.id_name);
+         ESP_LOGI(TAG_MAIN, "get_num_devices = %d", ble_mesh_provisioned_device_get_num_devices());
+        for (size_t i = 0; i < ble_mesh_provisioned_device_get_num_devices(); i++)
         {
-            my_end_device_data_1.status = endDeviceData_controled.status;
-            ESP_LOGI(TAG_MAIN, "setting status sensor1 = %d", my_end_device_data_1.status);
-            uint16_t node_index = ble_mesh_get_uuid_with_name((const char *)my_end_device_data_1.id_name);
-            if (my_end_device_data_1.status == 1)
+            if (strcmp(my_end_device_data.at(i).id_name, device_control.id_name) == 0)
             {
-                ble_mesh_send_gen_onoff_set(1, node_index);
-                my_end_device_data_1.current = 0.00;
-                my_end_device_data_1.power = my_end_device_data_1.current * my_end_device_data_1.voltage;
-            }
-            else
-            {
-                ble_mesh_send_gen_onoff_set(0, node_index);
-                my_end_device_data_1.current = 0;
-                my_end_device_data_1.power = my_end_device_data_1.current * my_end_device_data_1.voltage;
-            }
-        }
-        else if (strcmp(my_end_device_data_2.id_name, endDeviceData_controled.id_name) == 0)
-        {
-            my_end_device_data_2.status = endDeviceData_controled.status;
-            uint16_t node_index = ble_mesh_get_uuid_with_name((const char *)my_end_device_data_2.id_name);
-            ESP_LOGI(TAG_MAIN, "setting status sensor 2 = %d", my_end_device_data_2.status);
-            if (my_end_device_data_2.status == 1)
-            {
-                ble_mesh_send_gen_onoff_set(1, node_index);
-                my_end_device_data_2.current = 0.00;
-                my_end_device_data_2.power = my_end_device_data_2.current * my_end_device_data_2.voltage;
-            }
-            else
-            {
-                ble_mesh_send_gen_onoff_set(0, node_index);
-                my_end_device_data_2.current = 0;
-                my_end_device_data_2.power = my_end_device_data_2.current * my_end_device_data_2.voltage;
+                my_end_device_data.at(i).status = device_control.status;
+                ESP_LOGI(TAG_MAIN, "setting status = %d with name :%s", my_end_device_data.at(i).status, my_end_device_data.at(i).id_name);
+                uint16_t node_index = ble_mesh_get_uuid_with_name((const char *)my_end_device_data.at(i).id_name);
+                if (my_end_device_data.at(i).status == 1)
+                {
+                    ble_mesh_send_gen_onoff_set(1, node_index);
+                    my_end_device_data.at(i).current = 0.00;
+                    my_end_device_data.at(i).power = my_end_device_data.at(i).current * my_end_device_data.at(i).voltage;
+                }
+                else
+                {
+                    ble_mesh_send_gen_onoff_set(0, node_index);
+                    my_end_device_data.at(i).current = 0;
+                    my_end_device_data.at(i).power = my_end_device_data.at(i).current * my_end_device_data.at(i).voltage;
+                }
             }
         }
     }
-    else if (endDeviceData_controled.id_command == 2) // scan command
+    else if (device_control.id_command == 2) // scan command
     {
         // scan command response
+        ble_mesh_provisioner_prov_enable(false); // disable provision
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
         ble_mesh_provisioner_prov_enable(true); // enable ble provisioner
     }
-    else if (endDeviceData_controled.id_command == 3) // delete command
+    else if (device_control.id_command == 3) // delete command
     {
-
-        // ble_mesh_provisioner_delete_with_name();
+        // ble_mesh_provision_delete_with_name(device_control.id_name + strlen("Sensor_"));
+        // remove from the vector
+    }
+    else if (device_control.id_command == 4) // add a new sensor command
+    {
+        bScan_active = true;
+        ble_mesh_provision_device_with_name(device_control.id_name);
+        ble_mesh_free_unprov_table();
     }
 }
 
 /**
  * @brief
  *
- * @param dev_unprov
- * @param data
  */
-static void user_ble_mesh_event_data(const esp_ble_mesh_unprov_dev_add_t *data, void *event)
+static void user_ble_mesh_report_scan_result(void *param)
 {
-    ESP_LOGI(TAG_MAIN, "callback a new device: %s", bt_hex(data->uuid, 8));
-    uint8_t buffer[30]; //
-    memset(buffer, 0, sizeof(buffer));
-    sprintf((char *)buffer, "Sensor_%s", bt_hex(data->uuid, 8));
-
-    my_gateway.deviceReportScanDataPoint((char *)buffer);
+    ESP_LOGI(TAG_MAIN, "user_ble_mesh_report_scan_result called");
+    for (size_t i = 0; i < ble_mesh_provision_device_get_num_devices(); i++)
+    {
+        my_gateway.deviceReportScanDataPoint((std::string)ble_mesh_get_unprov_device_name(i));
+        // ESP_LOGI(TAG_MAIN, "name %s", ble_mesh_get_unprov_device_name(i));
+    }
 
     std::string message = my_gateway.deviceReportScanResult();
-    ESP_LOGI(TAG_MAIN, "HUB report scan example %s", message.c_str());
+    ESP_LOGI(TAG_MAIN, "HUB report message %s", message.c_str());
     // report to the AWS
-    ESP_LOGI(TAG_MAIN, "HUB report example %s", aws_getPublishTopic().c_str());
+    ESP_LOGI(TAG_MAIN, "HUB report TOPIC %s", aws_getPublishTopic().c_str());
     aws_publish(aws_getPublishTopic().c_str(), message.c_str(), strlen(message.c_str()));
     my_gateway.freeScanContent();
 }
 
-static void main_report_task(void *param)
+static void get_state_sensor_power_up(void)
 {
-    ESP_LOGI(TAG_MAIN, "*******aws main_report_task called");
+    // get
+}
+// #define TEST_SENSOR
 
-    while (!aws_isConnected())
-    {
-        ESP_LOGI(TAG_MAIN, " waiting for connection ...");
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
-    }
+/**
+ * @brief Set the default value new sensor object
+ *
+ */
+static void set_default_value_new_sensor(void * param)
+{
+    ESP_LOGI(TAG_MAIN, "set_default_value_new_sensor called");
+    EndDeviceData_t end_device_data;
+    uint8_t number_device_node = ble_mesh_provisioned_device_get_num_devices();
 
-    if (aws_isConnected())
-        aws_subscribeAllTopic();
-    ESP_LOGI(TAG_MAIN, "%s:%d, heap: %d, %d", __func__, __LINE__, esp_get_free_heap_size(), esp_get_minimum_free_heap_size());
+    end_device_data.current = 0;
+    end_device_data.id = 1;
+    sprintf(end_device_data.id_name, "%s", ble_mesh_provisioned_device_get_name(number_device_node - 1));
+    ESP_LOGI(TAG_MAIN, "add new sensor end_device_data[%d] with name :%s", number_device_node - 1, end_device_data.id_name);
+    end_device_data.power = 0;
+    end_device_data.voltage = 220;
+    end_device_data.status = false;
+    // add to vector
+    my_end_device_data.push_back(end_device_data);
+}
 
-    my_hub_data.current = 0;
-    my_hub_data.id = 1;
-    sprintf(my_hub_data.id_name, "%s", "Sensor_1");
-    my_hub_data.power = 0;
-    my_hub_data.voltage = 220;
-    my_hub_data.status = true;
-    my_hub_data.source_power_1 = true;
-    my_hub_data.source_power_2 = false;
+/**
+ * @brief Set the default value of sensor node object
+ *
+ */
+static void set_default_value_of_sensor_node(void)
+{
+#ifdef TEST_SENSOR
 
     my_end_device_data_1.current = 0;
     my_end_device_data_1.id = 1;
     sprintf(my_end_device_data_1.id_name, "%s", "Sensor_1");
     my_end_device_data_1.power = 0;
     my_end_device_data_1.voltage = 220;
-    my_end_device_data_1.status = false;
+    my_end_device_data_1.status = true;
+    my_end_device_data_1.source_power_1 = true;
+    my_end_device_data_1.source_power_2 = false;
 
     my_end_device_data_2.current = 0;
     my_end_device_data_2.id = 1;
     sprintf(my_end_device_data_2.id_name, "%s", "Sensor_2");
     my_end_device_data_2.power = 0;
     my_end_device_data_2.voltage = 220;
-    my_end_device_data_2.status = false;
+    my_end_device_data_2.status = true;
+    my_end_device_data_2.source_power_1 = true;
+    my_end_device_data_2.source_power_2 = false;
 
-    // uint8_t _state_test = 0;
+    my_hub_data.current = 0;
+    my_hub_data.id = 1;
+    sprintf(my_hub_data.id_name, "%s", "Hub");
+    my_hub_data.power = 0;
+    my_hub_data.voltage = 220;
+    my_hub_data.status = true;
+    my_hub_data.source_power_1 = true;
+    my_hub_data.source_power_2 = false;
+
+#else
+    uint8_t number_device_node = ble_mesh_provisioned_device_get_num_devices();
+    if (number_device_node == 0)
+        return;
+    EndDeviceData_t end_device_data;
+    for (size_t i = 0; i < number_device_node; i++)
+    {
+        end_device_data.current = 0;
+        end_device_data.id = 1;
+        sprintf(end_device_data.id_name, "%s", ble_mesh_provisioned_device_get_name(i));
+        ESP_LOGI(TAG_MAIN, "my_end_device_data[%d] with name :%s", i, end_device_data.id_name);
+        end_device_data.power = 0;
+        end_device_data.voltage = 220;
+        end_device_data.status = false;
+        // add to vector
+        my_end_device_data.push_back(end_device_data);
+    }
+
+    my_hub_data.current = 0;
+    my_hub_data.id = 1;
+    sprintf(my_hub_data.id_name, "%s", "Hub");
+    my_hub_data.power = 0;
+    my_hub_data.voltage = 220;
+    my_hub_data.status = true;
+    my_hub_data.source_power_1 = true;
+    my_hub_data.source_power_2 = false;
+#endif
+}
+
+bool first_time_init_aws = false;
+static void main_report_task(void *param)
+{
+    ESP_LOGI(TAG_MAIN, "*******aws main_report_task called");
+    ble_mesh_powerup_load_flash_devices();
+    set_default_value_of_sensor_node();
+    uint8_t _state_test = 0;
+    uint32_t current_time = 0;
     while (1)
     {
         if (aws_isConnected())
         {
+            if (first_time_init_aws == false)
+            {
+                vTaskDelay(3000 / portTICK_PERIOD_MS);
+                aws_subscribeAllTopic();
+                first_time_init_aws = true;
+            }
             userReportDataSensor();
-            // userControlReportDataSensorTest();
         }
         else
         {
             ESP_LOGE(TAG_MAIN, "aws_isConnected = %d", aws_isConnected());
         }
 
-        // _state_test ^= 1;
-        // ESP_LOGI(TAG_MAIN, "state_test = %d", _state_test);
-        // user_control_relay(_state_test);
         vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
 }
@@ -294,7 +356,7 @@ static void aws_subscribeAllTopic(void)
     std::string TopicSub = my_gateway.deviceSubTopic(my_gateway.getDeviceId());
     // std::string TopicSub = "$aws/things/44444/shadow/name/command/update/accepted"; // just test
     ESP_LOGI(TAG_MAIN, "Sub to topic: %s", TopicSub.c_str());
-    aws_subscribe(TopicSub.c_str(), event_mqtt_message);
+    aws_subscribe(TopicSub.c_str(), TopicSub.length(), event_mqtt_message);
 }
 
 static std::string aws_getPublishTopic(void)
@@ -326,7 +388,7 @@ static void ble_receive_command(uint8_t *command, uint16_t len)
     // {
     //     "wifi_command" : 1,
     //     "wifi_name" : "test123",
-    //     "wifi_passs" : "123456789"
+    //     "wifi_pass" : "123456789"
     // }
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, command);
@@ -338,10 +400,10 @@ static void ble_receive_command(uint8_t *command, uint16_t len)
         }
         else if (wifi_command == 1)
         {
-            if (doc.containsKey("wifi_name") && doc.containsKey("wifi_passs"))
+            if (doc.containsKey("wifi_name") && doc.containsKey("wifi_pass"))
             {
                 const char *ssid = doc["wifi_name"];
-                const char *pass = doc["wifi_passs"];
+                const char *pass = doc["wifi_pass"];
 
                 ESP_LOGI(TAG_MAIN, "command = %d", wifi_command);
                 ESP_LOGI(TAG_MAIN, "ssid = %s", ssid);
@@ -368,11 +430,7 @@ static void ble_receive_command(uint8_t *command, uint16_t len)
  */
 static void feedback_command(int status)
 {
-    // {
-    // "wifi_command": 1,
-    // "status": 0,
-    // }
-    DynamicJsonDocument doc(1024);
+    DynamicJsonDocument doc(512);
     char buffer[100];
     doc["wifi_command"] = 2;
 
@@ -381,12 +439,12 @@ static void feedback_command(int status)
         doc["status"] = 0;
     }
     else if (status == E_USER_WIFI_CONNECTED)
-        doc["status"] = 1;
+        doc["status"] = 0;
 
     serializeJson(doc, &buffer, sizeof(buffer));
     ESP_LOGI(TAG_MAIN, "message control: %s", buffer);
 
-    // gatt_report_reponse_command_notify((const char *)&buffer, strlen(buffer));
+    gatt_report_reponse_command_notify((const char *)&buffer, strlen(buffer));
 }
 
 /**
@@ -443,18 +501,9 @@ static void user_app_button_callback(int num, int event)
     {
         ESP_LOGI(TAG_MAIN, "erase flash device");
         ble_mesh_erase_settings(true);
-        ESP_LOGI(TAG_MAIN, "restart device");
-        // erase flash device
-        // int err = nvs_flash_erase_partition("aws_server");
-        // if (err != ESP_OK)
-        // {
-        //     ESP_LOGE(TAG_MAIN, "Error (%s) nvs_flash_erase_partition handle!\n", esp_err_to_name(err));
-        // }
-        // else
-        // {
-        //     ESP_LOGI(TAG_MAIN, "nvs_flash_erase_partition done");
-        // }
+        ESP_LOGI(TAG_MAIN, "erase user ble flash device");
 
+        ESP_LOGI(TAG_MAIN, "restart device");
         esp_restart();
     }
 }
@@ -468,27 +517,27 @@ static void userReportDataSensor(void)
     std::string node_name;
     uint8_t number_device_node = 0;
     number_device_node = ble_mesh_provisioned_device_get_num_devices();
+#ifdef TEST_SENSOR
+    my_gateway.deviceReportDataPoint("Sensor_1", my_end_device_data_1);
+    my_gateway.deviceReportDataPoint("Sensor_2", my_end_device_data_2);
+    my_gateway.setGateWayData(my_hub_data);
+#else
     if (number_device_node != 0)
     {
         // check sensor data
         for (size_t i = 0; i < number_device_node; i++)
         {
-            my_gateway.deviceReportDataPoint(ble_mesh_provisioned_device_get_name(i), my_end_device_data[i]);
+            my_gateway.deviceReportDataPoint(ble_mesh_provisioned_device_get_name(i), my_end_device_data.at(i));
         }
-
-        my_gateway.deviceReportDataPoint("Sensor_1", my_end_device_data_1);
-        my_gateway.deviceReportDataPoint("Sensor_2", my_end_device_data_2);
-        my_gateway.setGateWayData(my_hub_data);
-
-        std::string message = my_gateway.deviceReportAllDataPoints();
-        ESP_LOGI(TAG_MAIN, "HUB report example %s", aws_getPublishTopic().c_str());
-        aws_publish(aws_getPublishTopic().c_str(), message.c_str(), strlen(message.c_str()));
-        my_gateway.freeDataContent();
     }
-    else
-    {
-        ESP_LOGE(TAG_MAIN, "Has no sensor device available");
-    }
+    my_hub_data.status = true;
+    my_gateway.setGateWayData(my_hub_data);
+    ESP_LOGI(TAG_MAIN, "my_hub_data status: %d", my_hub_data.status);
+#endif
+    std::string message = my_gateway.deviceReportAllDataPoints();
+    ESP_LOGI(TAG_MAIN, "HUB report example %s", aws_getPublishTopic().c_str());
+    aws_publish(aws_getPublishTopic().c_str(), message.c_str(), strlen(message.c_str()));
+    my_gateway.freeDataContent();
 }
 
 /**

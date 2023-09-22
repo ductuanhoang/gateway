@@ -144,8 +144,8 @@ static esp_ble_mesh_prov_t provision = {
 };
 esp_ble_mesh_key_t prov_key;
 
-static ble_mesh_message_callback_t ble_mesh_message_callback = NULL;
 static bool ble_mesh_prov_enable_status = false;
+static ble_mesh_prov_complete_t prov_complete_service_callback;
 /***********************************************************************************************************************
  * static functions
  ***********************************************************************************************************************/
@@ -173,12 +173,18 @@ static void ble_mesh_sensor_client_cb(esp_ble_mesh_sensor_client_cb_event_t even
 /***********************************************************************************************************************
  * Imported global variables and functions (from other files)
  ***********************************************************************************************************************/
-void ble_mesh_message_register_callback(ble_mesh_message_callback_t callback)
+
+void user_ble_mesh_prov_complete_register(ble_mesh_prov_complete_t callback)
 {
     if (callback != NULL)
-        ble_mesh_message_callback = callback;
+        prov_complete_service_callback = callback;
 }
 
+/**
+ * @brief
+ *
+ * @return int
+ */
 int user_ble_mesh_init(void)
 {
     esp_err_t err = ESP_OK;
@@ -269,12 +275,12 @@ int user_ble_mesh_init(void)
     //     return err;
     // }
 
-    err = esp_ble_mesh_provisioner_prov_disable(ESP_BLE_MESH_PROV_ADV | ESP_BLE_MESH_PROV_GATT);
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "Failed to díable mesh provisioner (err %d)", err);
-        return err;
-    }
+    // err = esp_ble_mesh_provisioner_prov_disable(ESP_BLE_MESH_PROV_ADV | ESP_BLE_MESH_PROV_GATT);
+    // if (err != ESP_OK)
+    // {
+    //     ESP_LOGE(TAG, "Failed to díable mesh provisioner (err %d)", err);
+    //     return err;
+    // }
 
     ESP_LOGI(TAG, "BLE Mesh Provisioner initialized");
     return err;
@@ -402,13 +408,13 @@ static esp_err_t prov_complete(int node_idx, const esp_ble_mesh_octet16_t uuid,
     esp_ble_mesh_client_common_param_t common = {0};
     esp_ble_mesh_cfg_client_get_state_t get_state = {0};
     esp_ble_mesh_node_info_t *node = NULL;
-    char node_name[11] = {0};
+    char node_name[30] = {0};
     int err;
 
     ESP_LOGI(TAG, "prov_complete node index: 0x%x, unicast address: 0x%02x, element num: %d, netkey index: 0x%02x",
              node_idx, unicast, elem_num, net_idx);
     ESP_LOGI(TAG, "device uuid: %s", bt_hex(uuid, 8));
-    
+
     sprintf(node_name, "%s%s", PREFIX_NODE_NAME, (bt_hex(uuid, 8)));
 
     err = esp_ble_mesh_provisioner_set_node_name(node_idx, node_name);
@@ -484,11 +490,6 @@ static int recv_unprov_adv_pkt(uint8_t dev_uuid[16], uint8_t addr[BD_ADDR_LEN],
     err = ble_mesh_compare_new_prov(add_dev);
     if (err == 0) // new device founded
     {
-        // send notification to the server and wait for provisioning
-        // ble_mesh_notifi_new_device(add_dev);
-        if (ble_mesh_message_callback != NULL)
-            ble_mesh_message_callback(&add_dev, NULL);
-        // storage to the
     }
     return err;
 }
@@ -505,13 +506,13 @@ int ble_mesh_provisioner_prov_enable(uint8_t enable)
     esp_err_t result = ESP_OK;
     if (enable)
     {
+        ble_mesh_prov_enable_status = true;
         result = esp_ble_mesh_provisioner_prov_enable(ESP_BLE_MESH_PROV_ADV | ESP_BLE_MESH_PROV_GATT);
         if (result != ESP_OK)
         {
             ESP_LOGE(TAG, "Failed prov enable (err %d)", result);
             return result;
         }
-        ble_mesh_prov_enable_status = true;
         // result = esp_ble_mesh_provisioner_add_local_app_key(prov_key.app_key, prov_key.net_idx, prov_key.app_idx);
         // if (result != ESP_OK)
         // {
@@ -521,25 +522,12 @@ int ble_mesh_provisioner_prov_enable(uint8_t enable)
     }
     else
     {
-        result = esp_ble_mesh_provisioner_prov_disable(ESP_BLE_MESH_PROV_ADV | ESP_BLE_MESH_PROV_GATT);
         ble_mesh_prov_enable_status = false;
+        result = esp_ble_mesh_provisioner_prov_disable(ESP_BLE_MESH_PROV_ADV | ESP_BLE_MESH_PROV_GATT);
     }
     return result;
 }
 
-/**
- * @brief deletes the node sensor with name
- * 
- * @param name 
- * @return int 
- */
-int ble_mesh_provisioner_delete_with_name(const char *name)
-{
-    esp_err_t result = ESP_OK;
-
-
-    return result;
-}
 /**
  * @brief returns the provsion enabled status
  *
@@ -896,6 +884,8 @@ static void ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t event,
 
             ble_mesh_parse_node_comp_data(param->status_cb.comp_data_status.composition_data->data,
                                           param->status_cb.comp_data_status.composition_data->len);
+            ESP_LOGI(TAG, "**** %s:%d, heap: %d, %d", __func__, __LINE__, esp_get_free_heap_size(), esp_get_minimum_free_heap_size());
+
             // err = esp_ble_mesh_provisioner_store_node_comp_data(param->params->ctx.addr,
             //                                                     param->status_cb.comp_data_status.composition_data->data,
             //                                                     param->status_cb.comp_data_status.composition_data->len);
@@ -937,6 +927,7 @@ static void ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t event,
             set_state.model_app_bind.model_app_idx = prov_key.app_idx;
             set_state.model_app_bind.model_id = ESP_BLE_MESH_MODEL_ID_SENSOR_SRV;
             set_state.model_app_bind.company_id = ESP_BLE_MESH_CID_NVAL;
+            ESP_LOGI(TAG, "**** %s:%d, heap: %d, %d", __func__, __LINE__, esp_get_free_heap_size(), esp_get_minimum_free_heap_size());
             err = esp_ble_mesh_config_client_set_state(&common, &set_state);
             if (err)
             {
@@ -984,6 +975,8 @@ static void ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t event,
                 ESP_LOGW(TAG, "Provision and config on/off services successfully");
                 ESP_LOGI(TAG, "***** prov_key.app_idx = 0x%04x", prov_key.app_idx);
                 ESP_LOGI(TAG, "***** prov_key.net_idx = 0x%04x", prov_key.net_idx);
+                if (prov_complete_service_callback != NULL)
+                    prov_complete_service_callback(NULL);
             }
 
             if (param->status_cb.model_app_status.model_id == ESP_BLE_MESH_MODEL_ID_GEN_ONOFF_SRV)
@@ -1552,7 +1545,16 @@ void ble_mesh_erase_settings(bool erase)
     int err = nvs_flash_erase_partition("ble_mesh");
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Error (%s) nvs_flash_erase_partition handle!\n", esp_err_to_name(err));
+        ESP_LOGE(TAG, "Error (%s) nvs_flash_erase_partition ble_mesh handle!\n", esp_err_to_name(err));
+    }
+    else
+    {
+        ESP_LOGI(TAG, "nvs_flash_erase_partition done");
+    }
+    err = nvs_flash_erase_partition("user_ble"); // erase user_ble
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Error (%s) nvs_flash_erase_partition user_ble handle!\n", esp_err_to_name(err));
     }
     else
     {
@@ -1562,9 +1564,9 @@ void ble_mesh_erase_settings(bool erase)
 
 /**
  * @brief get uuid from name string
- * 
- * @param name 
- * @return uint16_t 
+ *
+ * @param name
+ * @return uint16_t
  */
 uint16_t ble_mesh_get_uuid_with_name(const char *name)
 {

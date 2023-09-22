@@ -13,7 +13,7 @@ extern "C"
     /****************************************************************************/
     /***        Macro Definitions                                             ***/
     /****************************************************************************/
-
+    typedef void (*ble_mesh_prov_complete_t)(void *);
     /****************************************************************************/
     /***        Type Definitions                                              ***/
     /****************************************************************************/
@@ -69,10 +69,19 @@ extern "C"
     /****************************************************************************/
     /***         Exported global functions                                     ***/
     /****************************************************************************/
-    typedef void (*ble_mesh_message_callback_t)(const esp_ble_mesh_unprov_dev_add_t *, void *);
 
-    void ble_mesh_message_register_callback(ble_mesh_message_callback_t callback);
-
+    /**
+     * @brief 
+     * 
+     * @param callback 
+     */
+    void user_ble_mesh_prov_complete_register(ble_mesh_prov_complete_t callback);
+    
+    /**
+     * @brief 
+     * 
+     * @return int 
+     */
     int user_ble_mesh_init(void);
     /**
      * @brief provsioner enable or disable
@@ -81,14 +90,6 @@ extern "C"
      * @return int
      */
     int ble_mesh_provisioner_prov_enable(uint8_t enable);
-
-    /**
-     * @brief deletes the node sensor with name
-     *
-     * @param name
-     * @return int
-     */
-    int ble_mesh_provisioner_delete_with_name(const char *name);
     
     /**
      * @brief returns the provsion enabled status

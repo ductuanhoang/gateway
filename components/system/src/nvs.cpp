@@ -267,13 +267,13 @@ void Erase_Flash(void)
 //----------------------------------------------------------------
 
 /**
- * @brief 
- * 
- * @param name 
- * @param key 
- * @param Out_String 
- * @param length 
- * @return int 
+ * @brief
+ *
+ * @param name
+ * @param key
+ * @param Out_String
+ * @param length
+ * @return int
  */
 int nvs_read_node_config_name(const char *name, const char *key, char *Out_String, size_t *length)
 {
@@ -312,13 +312,38 @@ int nvs_read_node_config_name(const char *name, const char *key, char *Out_Strin
     return err;
 }
 
+void nvs_save_node_config_name(const char *name, const char *key, char *string)
+{
+    nvs_handle_t my_handle;
+    nvs_stats_t nvs_stats;
+    nvs_get_stats(NULL, &nvs_stats);
+    ESP_LOGD(TAG, "Count: UsedEntries = (%d), FreeEntries = (%d), AllEntries = (%d)", nvs_stats.used_entries, nvs_stats.free_entries, nvs_stats.total_entries);
+    esp_err_t err = nvs_open_from_partition("user_ble", name, NVS_READWRITE, &my_handle);
+
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+    }
+    else
+    {
+        err = nvs_set_str(my_handle, key, string);
+        if (err != ESP_OK)
+            ESP_LOGE(TAG, "Failed write!\n");
+        err = nvs_commit(my_handle);
+        if (err != ESP_OK)
+            ESP_LOGE(TAG, "Failed commit!\n");
+
+        nvs_close(my_handle);
+    }
+}
+
 /**
- * @brief 
- * 
- * @param name 
- * @param key 
- * @param out 
- * @return int 
+ * @brief
+ *
+ * @param name
+ * @param key
+ * @param out
+ * @return int
  */
 int nvs_read_node_config_number(const char *name, const char *key, uint32_t *out)
 {

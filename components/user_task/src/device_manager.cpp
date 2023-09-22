@@ -123,6 +123,7 @@ static std::map<DeviceManager::DataDevice, const char *> GetDeviceNameStringID =
 static std::map<DeviceManager::Controltype, const char *> GetControlTypeStringID = {
     {DeviceManager::Controltype::CONTROL, "CONTROL"},
     {DeviceManager::Controltype::SCAN, "SCAN"},
+    {DeviceManager::Controltype::ADD, "ADD_SENSOR"},
     {DeviceManager::Controltype::DELETE, "DELETE_SENSOR"}};
 
 void DeviceManager::deviceReportDataPoint(std::string DP, EndDeviceData_t data)
@@ -149,7 +150,7 @@ void DeviceManager::clearGateWayData(void)
     m_gateway_data.voltage = 0;
     m_gateway_data.current = 0;
     m_gateway_data.power = 0;
-    m_gateway_data.status = false;
+    m_gateway_data.status = true;
     m_gateway_data.source_power_1 = false;
     m_gateway_data.source_power_2 = false;
 }
@@ -317,6 +318,13 @@ EndDeviceData_t DeviceManager::devivePasserMessage(std::string messge_read)
 
                 ESP_LOGI(TAG_DEVICE_MANAGER, "delete command id : %s", end_device_data_buffer.id_name);
             }
+            else if (strcmp(command, GetControlTypeStringID[DeviceManager::ADD]) == 0)
+            {
+                end_device_data_buffer.id_command = 4;
+                const char *id_name = doc["state"]["desired"]["command"]["parameter"]["breakermateID"];
+                snprintf(end_device_data_buffer.id_name, sizeof(end_device_data_buffer.id_name), "%s", id_name);
+                ESP_LOGI(TAG_DEVICE_MANAGER, "add command id : %s", end_device_data_buffer.id_name);
+            }
         }
         else
         {
@@ -341,7 +349,7 @@ std::string DeviceManager::deviceReportTopic(std::string Hub_id)
 std::string DeviceManager::deviceSubTopic(std::string Hub_id)
 {
     std::string Topic;
-    Topic = "$aws/things/" + Hub_id + "shadow/name/command/update/accepted";
+    Topic = "$aws/things/" + Hub_id + "/shadow/name/command/update/accepted";
     return Topic;
 }
 

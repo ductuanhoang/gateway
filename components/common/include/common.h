@@ -58,7 +58,7 @@ typedef struct
 typedef struct
 {
     int id;
-    char id_name[20];
+    char id_name[50];
     uint8_t id_command;
     bool status;
     double voltage;

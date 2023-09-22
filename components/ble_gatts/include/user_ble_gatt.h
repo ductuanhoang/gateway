@@ -50,6 +50,8 @@ extern "C"
     void user_ble_gatts_init(void);
 
     void ble_command_callback_init(ble_command_callback_t callback);
+
+    int gatt_report_reponse_command_notify(const char *message, uint16_t len);
 #ifdef __cplusplus
 }
 #endif

@@ -25,6 +25,17 @@
 
 #define NAMESPACE_BLE_MESH "BLE_MESH"
 #define NUMBER_OF_DEVICES "ble_num" // number of devices provisioned
+#define BLE_DEVICE_KEY_1 "info_1"
+#define BLE_DEVICE_KEY_2 "info_2"
+#define BLE_DEVICE_KEY_3 "info_3"
+#define BLE_DEVICE_KEY_4 "info_4"
+#define BLE_DEVICE_KEY_5 "info_5"
+#define BLE_DEVICE_KEY_6 "info_6"
+#define BLE_DEVICE_KEY_7 "info_7"
+#define BLE_DEVICE_KEY_8 "info_8"
+#define BLE_DEVICE_KEY_9 "info_9"
+#define BLE_DEVICE_KEY_10 "info_10"
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -58,11 +69,19 @@ extern "C"
      *
      * @param name
      * @param key
+     * @param string
+     */
+    void nvs_save_node_config_name(const char *name, const char *key, char *string);
+    /**
+     * @brief
+     *
+     * @param name
+     * @param key
      * @param out
      * @return int
      */
     int nvs_read_node_config_number(const char *name, const char *key, uint32_t *out);
-    
+
 #ifdef __cplusplus
 } // closing brace for extern "C"
 #endif

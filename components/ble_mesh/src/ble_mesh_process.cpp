@@ -44,6 +44,7 @@
 
 #include "user_console.h"
 #include "ble_mesh.h"
+#include "nvs_header.h"
 
 #define TAG "BLE_PROCESS"
 
@@ -54,13 +55,13 @@
 /***********************************************************************************************************************
  * Typedef definitions
  ***********************************************************************************************************************/
-#define TIMEOUT_SCAN_INTERVAL 10000     // 5s
-#define TIMEOUT_PROVIDER_INTERVAL 50000 // 50s
+#define TIMEOUT_SCAN_INTERVAL 5000      // 5s
+#define TIMEOUT_PROVIDER_INTERVAL 10000 // 10s
 #define TIME_TASK_WORKING 2000
 
 std::vector<std::tuple<esp_ble_mesh_unprov_dev_add_t, uint32_t>> scan_table_dev_unprov;
 std::vector<std::string> node_provisioned_table; // only need storage name
-
+static ble_mesh_report_t report_callback = NULL; // report callback
 /**
  * @brief this struct use save name of the sensor node provisioned
  *
@@ -90,6 +91,11 @@ void ble_mesh_tasks_init(void)
     xTaskCreatePinnedToCore(&ble_mesh_scan_timeout, "ble_mesh_scan_timeout", 4096, nullptr, 5, nullptr, 1);
 }
 
+void ble_mesh_report_scan_result_register_callback(ble_mesh_report_t callback)
+{
+    if (callback != NULL)
+        report_callback = callback;
+}
 /**
  * @brief
  *
@@ -97,11 +103,28 @@ void ble_mesh_tasks_init(void)
  */
 void ble_mesh_add_proved_devices(const char *node_name)
 {
+    char key_name[10];
+    memset(&key_name, 0, sizeof(key_name));
     if (node_provisioned_table.size() > CONFIG_BLE_MESH_MAX_PROV_NODES)
         return;
+    // compare with previous devices name
+    for (size_t i = 0; i < node_provisioned_table.size(); i++)
+    {
+        if (strcmp(node_provisioned_table.at(i).c_str(), node_name) == 0)
+        {
+            ESP_LOGI(TAG, "Node name: %s has exits", node_name);
+            return;
+        }
+    }
+
     node_provisioned_table.push_back(node_name);
     // TODO: save this new node to flash memory
-
+    for (size_t i = 0; i < node_provisioned_table.size(); i++)
+    {
+        sprintf(key_name, "info_%d", i);
+        nvs_save_node_config_name(NAMESPACE_BLE_MESH, (const char *)key_name, (char *)node_provisioned_table.at(i).c_str());
+        ESP_LOGI(TAG, "Save to flash: %s", key_name);
+    }
 }
 
 /**
@@ -110,9 +133,86 @@ void ble_mesh_add_proved_devices(const char *node_name)
  */
 void ble_mesh_powerup_load_flash_devices(void)
 {
-    // get number of devices
+    // test save and read string values
+    int error = -1;
+    char key_name[10];
+    char value_name[30];
+    memset(&key_name, 0, sizeof(key_name));
+    std::string message;
+    size_t length = 0;
+    for (size_t i = 0; i < 10; i++)
+    {
+        sprintf(key_name, "info_%d", i);
+        error = nvs_read_node_config_name(NAMESPACE_BLE_MESH, (const char *)key_name, (char *)value_name, &length);
+        if (error == ESP_OK)
+        {
+            if (length != 0)
+                ESP_LOGI(TAG, "Read from flash: %s -- and name is: %s", key_name, value_name);
+            node_provisioned_table.push_back(value_name);
+        }
+    }
 }
 
+/**
+ * @brief
+ *
+ * @param name
+ */
+void ble_mesh_remove_device_from_list(const char *name)
+{
+    for (size_t i = 0; i < node_provisioned_table.size(); i++)
+    {
+        if (strcmp(node_provisioned_table.at(i).c_str(), name) == 0)
+        {
+            node_provisioned_table.erase(node_provisioned_table.begin() + i);
+        }
+    }
+}
+
+/**
+ * @brief
+ *
+ * @param name
+ */
+void ble_mesh_provision_device_with_name(const char *name)
+{
+    ESP_LOGI(TAG, "provision_device_with_name: %s", name);
+
+    for (size_t i = 0; i < scan_table_dev_unprov.size(); i++)
+    {
+        ESP_LOGI(TAG, "compare between %s and %s", ble_mesh_get_unprov_device_name(i), name);
+        if (strcmp(ble_mesh_get_unprov_device_name(i), name) == 0)
+        {
+            ESP_LOGI(TAG, "ble_mesh_provision_device_index[%d]", i);
+            ble_mesh_provision_device_index(i);
+            return;
+        }
+    }
+}
+
+/**
+ * @brief deletes the node sensor with name
+ *
+ * @param name
+ * @return int
+ */
+int ble_mesh_provision_delete_with_name(const char *name)
+{
+    esp_err_t result = ESP_OK;
+    esp_ble_mesh_device_delete_t del_dev = {
+        .flag = BIT(0),
+    };
+
+    ble_mesh_remove_device_from_list(name);
+    esp_ble_mesh_provisioner_delete_dev(&del_dev);
+    return result;
+}
+
+/**
+ * @brief
+ *
+ * @param index
+ */
 void ble_mesh_provision_device_index(uint32_t index)
 {
     if (scan_table_dev_unprov.empty() | (index > scan_table_dev_unprov.size()))
@@ -178,10 +278,10 @@ uint8_t ble_mesh_provisioned_device_get_num_devices(void)
 }
 
 /**
- * @brief 
- * 
- * @param index 
- * @return char* 
+ * @brief
+ *
+ * @param index
+ * @return char*
  */
 const char *ble_mesh_provisioned_device_get_name(uint8_t index)
 {
@@ -198,6 +298,34 @@ esp_ble_mesh_unprov_dev_add_t ble_mesh_get_unprov_device_index(uint32_t index)
     return (std::get<0>(scan_table_dev_unprov[index]));
 }
 
+/**
+ * @brief
+ *
+ * @param index
+ * @return const char*
+ */
+const char *ble_mesh_get_unprov_device_name(uint32_t index)
+{
+    char *unprov_name;
+    unprov_name = (char *)calloc(30, sizeof(char));
+    if (unprov_name == NULL)
+    {
+        ESP_LOGI(TAG, "****unprov_name allocation failed");
+        exit(1);
+    }
+
+    if (index > ble_mesh_provision_device_get_num_devices())
+        return NULL;
+    esp_ble_mesh_unprov_dev_add_t node = ble_mesh_get_unprov_device_index(index);
+    sprintf(unprov_name, "Sensor_%s", bt_hex(node.uuid, 8));
+    // ESP_LOGI(TAG, "unprov_name = %s", unprov_name);
+    return unprov_name;
+}
+
+/**
+ * @brief
+ *
+ */
 void ble_mesh_free_unprov_table(void)
 {
     scan_table_dev_unprov.clear();
@@ -258,6 +386,7 @@ int ble_mesh_compare_new_prov(esp_ble_mesh_unprov_dev_add_t new_dev_unprov)
 static int provision_device(esp_ble_mesh_unprov_dev_add_t device)
 {
     int ret = -1;
+    // ret = ble_mesh_provisioner_prov_enable(true);
     /* Note: If unprovisioned device adv packets have not been received, we should not add
              device with ADD_DEV_START_PROV_NOW_FLAG set. */
     ret = esp_ble_mesh_provisioner_add_unprov_dev(&device,
@@ -344,13 +473,15 @@ static void ble_mesh_scan_timeout(void *param)
         // ble provisioner timeout
         if (ble_mesh_provisioner_get_prov_enabled() == true)
         {
-
             ble_prov_timeout -= TIME_TASK_WORKING;
             if (ble_prov_timeout == 0)
             {
                 // timeout provider timeout disabled ble provisioner
-                ble_mesh_provisioner_prov_enable(0);
-                ble_mesh_free_unprov_table();
+                // call back report scan table
+                if (report_callback != NULL)
+                    report_callback(NULL);
+                //
+                // ble_mesh_free_unprov_table();
                 ESP_LOGI(TAG, "ble provisioner timeout disabled");
             }
         }

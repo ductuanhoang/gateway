@@ -14,7 +14,7 @@ extern "C"
     typedef void (*pSubCallBackHandler_t)(char *topicName, int payloadLen, char *payLoad);
     int aws_iot_init(void);
     int aws_publish(const char *pubTopic, const char *pubPayLoad, int payLoadLen);
-    int aws_subscribe(const char *subTopic, pSubCallBackHandler_t pSubCallBackHandler);
+    int aws_subscribe(const char *subTopic, uint16_t size_topic,  pSubCallBackHandler_t pSubCallBackHandler);
     bool aws_isConnected(void);
 #ifdef __cplusplus
 }

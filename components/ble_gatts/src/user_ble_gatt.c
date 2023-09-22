@@ -57,7 +57,14 @@
 /***********************************************************************************************************************
  * Imported global variables and functions (from other files)
  ***********************************************************************************************************************/
+typedef struct
+{
+    esp_gatt_if_t gatts_if;
+    uint16_t conn_id;
+    uint8_t enable;
+} ble_gat_report_t;
 
+ble_gat_report_t ble_gat_report;
 /***********************************************************************************************************************
  * static functions
  ***********************************************************************************************************************/
@@ -539,9 +546,9 @@ static void gatts_profile_wifi_command_event_handler(esp_gatts_cb_event_t event,
         esp_ble_gatts_start_service(gl_profile_tab[PROFILE_WIFI_COMMAND_ID].service_handle);
         a_property = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
         esp_err_t add_char_ret_2 = esp_ble_gatts_add_char(gl_profile_tab[PROFILE_WIFI_COMMAND_ID].service_handle, &gl_profile_tab[PROFILE_WIFI_COMMAND_ID].char_uuid,
-                                                        ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
-                                                        a_property,
-                                                        &gatts_demo_char1_val, NULL);
+                                                          ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
+                                                          a_property,
+                                                          &gatts_demo_char1_val, NULL);
         if (add_char_ret_2)
         {
             ESP_LOGE(GATTS_TAG, "add char failed, error code =%x", add_char_ret);
@@ -675,15 +682,10 @@ static void gatts_profile_b_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
                 {
                     if (b_property & ESP_GATT_CHAR_PROP_BIT_NOTIFY)
                     {
-                        ESP_LOGI(GATTS_TAG, "notify enable");
-                        uint8_t notify_data[15];
-                        for (int i = 0; i < sizeof(notify_data); ++i)
-                        {
-                            notify_data[i] = i % 0xff;
-                        }
-                        // the size of notify_data[] need less than MTU size
-                        esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, gl_profile_tab[PROFILE_B_APP_ID].char_handle,
-                                                    sizeof(notify_data), notify_data, false);
+                        ble_gat_report.enable = 1;
+                        ble_gat_report.gatts_if = gatts_if;
+                        ble_gat_report.conn_id = param->write.conn_id;
+                        ESP_LOGI(GATTS_TAG, "notify enable of service: %x", DEVICE_INFO_SERVICE);
                     }
                 }
                 else if (descr_value == 0x0002)
@@ -703,7 +705,8 @@ static void gatts_profile_b_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
                 }
                 else if (descr_value == 0x0000)
                 {
-                    ESP_LOGI(GATTS_TAG, "notify/indicate disable ");
+                    ESP_LOGI(GATTS_TAG, "notify/indicate disable of service: %x", DEVICE_INFO_SERVICE);
+                    ble_gat_report.enable = 0;
                 }
                 else
                 {
@@ -905,6 +908,16 @@ void ble_command_callback_init(ble_command_callback_t callback)
     }
 }
 
+
+int gatt_report_reponse_command_notify(const char *message, uint16_t len)
+{
+    int err = -1;
+    // the size of notify_data[] need less than MTU size
+    if (ble_gat_report.enable)
+        err = esp_ble_gatts_send_indicate(ble_gat_report.gatts_if, ble_gat_report.conn_id, gl_profile_tab[PROFILE_B_APP_ID].char_handle,
+                                    len, (uint8_t *)message, false);
+    return err;
+}
 /***********************************************************************************************************************
  * End of file
  ***********************************************************************************************************************/

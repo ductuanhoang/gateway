@@ -87,6 +87,7 @@ static void event_handler(void *arg, esp_event_base_t event_base,
     {
         if (s_retry_num < CONFIG_ESP_MAXIMUM_RETRY)
         {
+            user_wifi_set_wifi_status(E_USER_WIFI_DISCONNECTED);
             esp_wifi_connect();
             s_retry_num++;
             ESP_LOGI(WIFI_TAG, "retry to connect to the AP");
@@ -102,6 +103,7 @@ static void event_handler(void *arg, esp_event_base_t event_base,
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         ESP_LOGI(WIFI_TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
         s_retry_num = 0;
+        user_wifi_set_wifi_status(E_USER_WIFI_CONNECTED);
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
 }
@@ -185,10 +187,9 @@ void user_wifi_connect_AP(const char *ssid, const char *password)
     }
 
     xTaskCreate(user_wifi_task, "user_wifi_task", 1024 * 5, NULL, 5, NULL);
-    /* The event will not be processed after unregister */
-    // ESP_ERROR_CHECK(esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
-    // ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
-    vEventGroupDelete(s_wifi_event_group);
+
+    // ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
+    // vEventGroupDelete(s_wifi_event_group);
 }
 
 /**
