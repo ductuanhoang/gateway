@@ -326,8 +326,8 @@ bool first_time_init_aws = false;
 static void main_report_task(void *param)
 {
     ESP_LOGI(TAG_MAIN, "*******aws main_report_task called");
-    ble_mesh_powerup_load_flash_devices();
-    set_default_value_of_sensor_node();
+    // ble_mesh_powerup_load_flash_devices();
+    // set_default_value_of_sensor_node();
     uint8_t _state_test = 0;
     uint32_t current_time = 0;
     while (1)
@@ -354,7 +354,6 @@ static void main_report_task(void *param)
 static void aws_subscribeAllTopic(void)
 {
     std::string TopicSub = my_gateway.deviceSubTopic(my_gateway.getDeviceId());
-    // std::string TopicSub = "$aws/things/44444/shadow/name/command/update/accepted"; // just test
     ESP_LOGI(TAG_MAIN, "Sub to topic: %s", TopicSub.c_str());
     aws_subscribe(TopicSub.c_str(), TopicSub.length(), event_mqtt_message);
 }

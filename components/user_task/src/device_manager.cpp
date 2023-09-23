@@ -1,14 +1,9 @@
 #include "device_manager.h"
 #include <map>
 #include "aws_task.h"
-#include "aws_iot_config.h"
-#include "aws_iot_log.h"
-#include "aws_iot_version.h"
-#include "aws_iot_mqtt_client_interface.h"
-#include "aws_mqtt_provisioning.h"
 #include "ArduinoJson.h"
 #include "nvs_header.h"
-
+#include "esp_log.h"
 /***********************************************************************************************************************
  * functions
  ***********************************************************************************************************************/

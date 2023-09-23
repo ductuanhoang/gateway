@@ -5,7 +5,7 @@
 #                     REQUIRES ${pri_req})
 
 
-set(pri_req  common driver log nvs_flash esp_system  bt aws_iot ArduinoJson system ) 
+set(pri_req  common driver log nvs_flash esp_system  bt user_aws_v2 ArduinoJson system ) 
 
 set(include_dirs "include")
 

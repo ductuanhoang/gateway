@@ -76,9 +76,10 @@ D:/2.upwork/57.BreakerMater/Code/gateway/build/esp-idf/user_wifi/libuser_wifi.a
 D:/2.upwork/57.BreakerMater/Code/gateway/build/esp-idf/system/libsystem.a
 D:/2.upwork/57.BreakerMater/Code/gateway/build/esp-idf/user_driver/libuser_driver.a
 D:/2.upwork/57.BreakerMater/Code/gateway/build/esp-idf/aws_provisioning/libaws_provisioning.a
-D:/2.upwork/57.BreakerMater/Code/gateway/build/esp-idf/aws_iot/libaws_iot.a
+D:/2.upwork/57.BreakerMater/Code/gateway/build/esp-idf/user_aws_v2/libuser_aws_v2.a
 D:/2.upwork/57.BreakerMater/Code/gateway/build/esp-idf/user_task/libuser_task.a
 D:/2.upwork/57.BreakerMater/Code/gateway/build/esp-idf/sntp_time/libsntp_time.a
 D:/2.upwork/57.BreakerMater/Code/gateway/build/esp-idf/ble_mesh/libble_mesh.a
 D:/2.upwork/57.BreakerMater/Code/gateway/build/esp-idf/ble_gatts/libble_gatts.a
 D:/2.upwork/57.BreakerMater/Code/gateway/build/esp-idf/emonLib/libemonLib.a
+D:/2.upwork/57.BreakerMater/Code/gateway/build/esp-idf/aws_iot/libaws_iot.a

@@ -76,9 +76,10 @@ $<TARGET_FILE:__idf_user_wifi>
 $<TARGET_FILE:__idf_system>
 $<TARGET_FILE:__idf_user_driver>
 $<TARGET_FILE:__idf_aws_provisioning>
-$<TARGET_FILE:__idf_aws_iot>
+$<TARGET_FILE:__idf_user_aws_v2>
 $<TARGET_FILE:__idf_user_task>
 $<TARGET_FILE:__idf_sntp_time>
 $<TARGET_FILE:__idf_ble_mesh>
 $<TARGET_FILE:__idf_ble_gatts>
 $<TARGET_FILE:__idf_emonLib>
+$<TARGET_FILE:__idf_aws_iot>

@@ -93,7 +93,11 @@
         "ble_mesh_message.h": "c",
         "stdbool.h": "c",
         "ble_mesh.h": "c",
-        "user_console.h": "c"
+        "user_console.h": "c",
+        "stdio.h": "c",
+        "user_aws_v2_event.h": "c",
+        "user_aws_v2.h": "c",
+        "aws_mqtt_provisioning.h": "c"
     },
     "idf.flashType": "UART"
 }
