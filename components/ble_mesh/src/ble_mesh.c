@@ -145,7 +145,8 @@ static esp_ble_mesh_prov_t provision = {
 esp_ble_mesh_key_t prov_key;
 
 static bool ble_mesh_prov_enable_status = false;
-static ble_mesh_prov_complete_t prov_complete_service_callback;
+static ble_mesh_prov_complete_t prov_complete_service_callback = NULL;
+static ble_mesh_sensor_data_t sensor_data_callback = NULL;
 /***********************************************************************************************************************
  * static functions
  ***********************************************************************************************************************/
@@ -180,6 +181,11 @@ void user_ble_mesh_prov_complete_register(ble_mesh_prov_complete_t callback)
         prov_complete_service_callback = callback;
 }
 
+void user_ble_mesh_sensor_data_feedback_register(ble_mesh_sensor_data_t callback)
+{
+    if (callback != NULL)
+        sensor_data_callback = callback;
+}
 /**
  * @brief
  *
@@ -1288,6 +1294,11 @@ static void ble_mesh_sensor_client_cb(esp_ble_mesh_sensor_client_cb_event_t even
                              fmt == ESP_BLE_MESH_SENSOR_DATA_FORMAT_A ? "A" : "B", data_len, prop_id);
                     if (data_len != ESP_BLE_MESH_SENSOR_DATA_ZERO_LEN)
                     {
+                        if ((fmt == ESP_BLE_MESH_SENSOR_DATA_FORMAT_A) && (prop_id == 0x0056))
+                        {
+                            if (sensor_data_callback != NULL)
+                                sensor_data_callback(data[mpid_len], param->params->ctx.addr);
+                        }
                         ESP_LOG_BUFFER_HEX("Sensor Data", data + mpid_len, data_len + 1);
                         length += mpid_len + data_len + 1;
                         data += mpid_len + data_len + 1;
@@ -1580,6 +1591,26 @@ uint16_t ble_mesh_get_uuid_with_name(const char *name)
     }
     uuid = node_info->unicast_addr;
     return (uint16_t)uuid;
+}
+
+/**
+ * @brief
+ *
+ * @param add
+ * @return uint8_t*
+ */
+char *ble_mesh_get_name_from_add(uint16_t add)
+{
+    esp_ble_mesh_node_t *node_info = NULL;
+    char *node_name = malloc(30);
+    node_info = esp_ble_mesh_provisioner_get_node_with_addr(add);
+    if (!node_info)
+    {
+        ESP_LOGE(TAG, "Node name %d not exists", add);
+    }
+    sprintf(node_name, "%s%s", PREFIX_NODE_NAME, (bt_hex(node_info->dev_uuid, 8)));
+    node_name[strlen(node_name) + 1] = '\0';
+    return node_name;
 }
 /***********************************************************************************************************************
  * End of file

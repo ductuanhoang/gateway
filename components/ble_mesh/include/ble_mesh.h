@@ -14,6 +14,7 @@ extern "C"
     /***        Macro Definitions                                             ***/
     /****************************************************************************/
     typedef void (*ble_mesh_prov_complete_t)(void *);
+    typedef void (*ble_mesh_sensor_data_t)(uint16_t, uint16_t );
     /****************************************************************************/
     /***        Type Definitions                                              ***/
     /****************************************************************************/
@@ -71,16 +72,22 @@ extern "C"
     /****************************************************************************/
 
     /**
-     * @brief 
-     * 
-     * @param callback 
+     * @brief
+     *
+     * @param callback
      */
     void user_ble_mesh_prov_complete_register(ble_mesh_prov_complete_t callback);
-    
+
     /**
-     * @brief 
-     * 
-     * @return int 
+     * @brief
+     *
+     * @param callback
+     */
+    void user_ble_mesh_sensor_data_feedback_register(ble_mesh_sensor_data_t callback);
+    /**
+     * @brief
+     *
+     * @return int
      */
     int user_ble_mesh_init(void);
     /**
@@ -90,7 +97,7 @@ extern "C"
      * @return int
      */
     int ble_mesh_provisioner_prov_enable(uint8_t enable);
-    
+
     /**
      * @brief returns the provsion enabled status
      *
@@ -215,6 +222,13 @@ extern "C"
      * @return uint16_t
      */
     uint16_t ble_mesh_get_uuid_with_name(const char *name);
+    /**
+     * @brief
+     *
+     * @param uuid
+     * @return char*
+     */
+    char *ble_mesh_get_name_from_add(uint16_t add);
 #ifdef __cplusplus
 }
 #endif

@@ -70,11 +70,11 @@ static void main_report_task(void *param);
 static std::string aws_getPublishTopic(void);
 static void aws_subscribeAllTopic(void);
 static void userReportDataSensor(void);
-static void userControlReportDataSensorTest(void);
 
 static void user_ble_mesh_report_scan_result(void *param);
-static void set_default_value_new_sensor(void * param);
-
+static void set_default_value_new_sensor(void *param);
+static void get_state_sensor_interval(void);
+static void set_sensor_data_feedback(uint16_t data, uint16_t add);
 /***********************************************************************************************************************
  * Exported global variables and functions (to be accessed by other files)
  ***********************************************************************************************************************/
@@ -133,6 +133,7 @@ void app_init(void)
         user_ble_mesh_init();
         ble_mesh_report_scan_result_register_callback(user_ble_mesh_report_scan_result);
         user_ble_mesh_prov_complete_register(set_default_value_new_sensor);
+        user_ble_mesh_sensor_data_feedback_register(set_sensor_data_feedback);
         ble_mesh_tasks_init();
         // check if device has provision wifi before
         ESP_LOGI(TAG_MAIN, "device has wifi with: ");
@@ -167,9 +168,11 @@ static void event_mqtt_message(char *topicName, int payloadLen, char *payLoad)
     if (device_control.id_command == 1) // control command
     {
         ESP_LOGI(TAG_MAIN, "device_control name = %s", device_control.id_name);
-         ESP_LOGI(TAG_MAIN, "get_num_devices = %d", ble_mesh_provisioned_device_get_num_devices());
+        ESP_LOGI(TAG_MAIN, "get_num_devices = %d", ble_mesh_provisioned_device_get_num_devices());
         for (size_t i = 0; i < ble_mesh_provisioned_device_get_num_devices(); i++)
         {
+            ESP_LOGI(TAG_MAIN, "compare between %s and %s", my_end_device_data.at(i).id_name, device_control.id_name);
+
             if (strcmp(my_end_device_data.at(i).id_name, device_control.id_name) == 0)
             {
                 my_end_device_data.at(i).status = device_control.status;
@@ -199,8 +202,15 @@ static void event_mqtt_message(char *topicName, int payloadLen, char *payLoad)
     }
     else if (device_control.id_command == 3) // delete command
     {
-        // ble_mesh_provision_delete_with_name(device_control.id_name + strlen("Sensor_"));
+        ble_mesh_provision_delete_with_name(device_control.id_name + strlen("Sensor_"));
         // remove from the vector
+        for (size_t i = 0; i < my_end_device_data.size(); i++)
+        {
+            if (strcmp(my_end_device_data.at(i).id_name, device_control.id_name) == 0)
+            {
+                my_end_device_data.erase(my_end_device_data.begin() + i);
+            }
+        }
     }
     else if (device_control.id_command == 4) // add a new sensor command
     {
@@ -231,17 +241,50 @@ static void user_ble_mesh_report_scan_result(void *param)
     my_gateway.freeScanContent();
 }
 
-static void get_state_sensor_power_up(void)
+/**
+ * @brief Get the state sensor interval object
+ *
+ */
+static void get_state_sensor_interval(void)
 {
-    // get
+    for (size_t i = 0; i < my_end_device_data.size(); i++)
+    {
+        uint16_t node_index = ble_mesh_get_uuid_with_name((const char *)my_end_device_data.at(i).id_name);
+        ble_mesh_send_sensor_message(ESP_BLE_MESH_MODEL_OP_SENSOR_GET, node_index);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
 }
 // #define TEST_SENSOR
 
 /**
+ * @brief Set the sensor data feedback object
+ *
+ * @param data: current sensor data
+ * @param uuid: unicast identifier
+ */
+static void set_sensor_data_feedback(uint16_t data, uint16_t add)
+{
+    ESP_LOGI(TAG_MAIN, "set_sensor_data_feedback called");
+    std::string sensor_name;
+    sensor_name = ble_mesh_get_name_from_add(add);
+    ESP_LOGI(TAG_MAIN, "sensor name : %s has current = %f", ble_mesh_get_name_from_add(add), data / 10.0);
+
+    for (size_t i = 0; i < my_end_device_data.size(); i++)
+    {
+        ESP_LOGI(TAG_MAIN, "compare between %s and %s", my_end_device_data.at(i).id_name, sensor_name.c_str());
+        if (strcmp(my_end_device_data.at(i).id_name, sensor_name.c_str()) == 0)
+        {
+            ESP_LOGI(TAG_MAIN, "add sensor name : %s has current = %f to vector", ble_mesh_get_name_from_add(add), data / 10.0);
+            my_end_device_data.at(i).current = data / 10.0;
+            return;
+        }
+    }
+}
+/**
  * @brief Set the default value new sensor object
  *
  */
-static void set_default_value_new_sensor(void * param)
+static void set_default_value_new_sensor(void *param)
 {
     ESP_LOGI(TAG_MAIN, "set_default_value_new_sensor called");
     EndDeviceData_t end_device_data;
@@ -326,8 +369,8 @@ bool first_time_init_aws = false;
 static void main_report_task(void *param)
 {
     ESP_LOGI(TAG_MAIN, "*******aws main_report_task called");
-    // ble_mesh_powerup_load_flash_devices();
-    // set_default_value_of_sensor_node();
+    ble_mesh_powerup_load_flash_devices();
+    set_default_value_of_sensor_node();
     uint8_t _state_test = 0;
     uint32_t current_time = 0;
     while (1)
@@ -340,6 +383,7 @@ static void main_report_task(void *param)
                 aws_subscribeAllTopic();
                 first_time_init_aws = true;
             }
+            get_state_sensor_interval();
             userReportDataSensor();
         }
         else
@@ -361,7 +405,7 @@ static void aws_subscribeAllTopic(void)
 static std::string aws_getPublishTopic(void)
 {
     std::string TopicPub = my_gateway.deviceReportTopic(my_gateway.getDeviceId());
-    ESP_LOGI(TAG_MAIN, "Pub to topic: %s", TopicPub.c_str());
+    // ESP_LOGI(TAG_MAIN, "Pub to topic: %s", TopicPub.c_str());
     return TopicPub;
 }
 /***********************************************************************************************************************
@@ -534,23 +578,10 @@ static void userReportDataSensor(void)
     ESP_LOGI(TAG_MAIN, "my_hub_data status: %d", my_hub_data.status);
 #endif
     std::string message = my_gateway.deviceReportAllDataPoints();
-    ESP_LOGI(TAG_MAIN, "HUB report example %s", aws_getPublishTopic().c_str());
+    // ESP_LOGI(TAG_MAIN, "HUB report example %s", aws_getPublishTopic().c_str());
     aws_publish(aws_getPublishTopic().c_str(), message.c_str(), strlen(message.c_str()));
+    ESP_LOGI(TAG_MAIN, "**** CHECK: %s:%d, heap: %d, %d", __func__, __LINE__, esp_get_free_heap_size(), esp_get_minimum_free_heap_size());
     my_gateway.freeDataContent();
-}
-
-/**
- * @brief
- *
- */
-static void userControlReportDataSensorTest(void)
-{
-    std::string TopicSub = "$aws/things/44444/shadow/name/command/update";
-    char buffer_send[300];
-    memset(buffer_send, 0x00, sizeof(buffer_send));
-    sprintf(buffer_send, "%s", "{\"state\":{\"desired\":{\"command\":{\"name\":\"OFF\",\"parameter\":{\"hubID\":44444,\"breakermateID\":\"Sensor_1\"}}}},\"metadata\":{\"desired\":{\"command\":{\"name\":{\"timestamp\":1685881405},\"parameter\":{\"hubID\":{\"timestamp\":1685881405},\"breakermateID\":{\"timestamp\":1685881405}}}}},\"version\":1142,\"timestamp\":1685881405}");
-
-    aws_publish(TopicSub.c_str(), buffer_send, strlen(buffer_send));
 }
 
 /***********************************************************************************************************************

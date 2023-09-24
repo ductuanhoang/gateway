@@ -75,7 +75,14 @@ extern "C"
      * @param name
      */
     void ble_mesh_provision_device_with_name(const char *name);
-
+    /**
+     * @brief deletes the node sensor with name
+     *
+     * @param name
+     * @return int
+     */
+    int ble_mesh_provision_delete_with_name(const char *name);
+    
     /**
      * @brief remove the device from the list of devices
      *
@@ -133,7 +140,7 @@ extern "C"
      * @return const char*
      */
     const char *ble_mesh_get_unprov_device_name(uint32_t index);
-    
+
     /**
      * @brief
      *
